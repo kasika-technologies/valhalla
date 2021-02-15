@@ -281,21 +281,6 @@ void thor_worker_t::parse_measurements(const Api& request) {
   } catch (...) { throw valhalla_exception_t{424}; }
 }
 
-void thor_worker_t::log_admin(const valhalla::TripLeg& trip_path) {
-  std::unordered_set<std::string> state_iso;
-  std::unordered_set<std::string> country_iso;
-  if (trip_path.admin_size() > 0) {
-    for (const auto& admin : trip_path.admin()) {
-      if (admin.has_state_code()) {
-        state_iso.insert(admin.state_code());
-      }
-      if (admin.has_country_code()) {
-        country_iso.insert(admin.country_code());
-      }
-    }
-  }
-}
-
 /*
  * Apply attribute filters from the request to the AttributesController. These filters
  * allow including or excluding specific attributes from the response in route,

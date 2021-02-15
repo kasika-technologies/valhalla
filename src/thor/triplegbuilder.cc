@@ -599,6 +599,7 @@ TripLeg_Edge* AddTripEdge(const AttributesController& controller,
     for (auto tl : turnlanes) {
       TurnLane* turn_lane = trip_edge->add_turn_lanes();
       turn_lane->set_directions_mask(tl);
+      turn_lane->set_state(TurnLane::kInvalid);
     }
   }
 

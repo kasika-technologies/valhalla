@@ -375,7 +375,8 @@ void PopulateEdge(TripLeg_Edge* edge,
                   const std::vector<std::pair<std::string, bool>>& exit_onto_streets,
                   const std::vector<std::pair<std::string, bool>>& exit_toward_locations,
                   const std::vector<std::pair<std::string, bool>>& exit_names,
-                  TripLeg_TravelMode travel_mode = TripLeg_TravelMode_kDrive) {
+                  TripLeg_TravelMode travel_mode = TripLeg_TravelMode_kDrive,
+                  bool drive_on_right = true) {
   for (const auto& name : names) {
     auto* edge_name = edge->add_name();
     edge_name->set_value(name.first);
@@ -426,6 +427,7 @@ void PopulateEdge(TripLeg_Edge* edge,
     edge_exit_name->set_is_route_number(exit_name.second);
   }
   edge->set_travel_mode(travel_mode);
+  edge->set_drive_on_right(drive_on_right);
 }
 
 void PopulateIntersectingEdge(TripLeg_IntersectingEdge* xedge,

@@ -318,7 +318,7 @@ void add_date_to_locations(Options& options,
   }
 }
 
-void parse_locations(const rapidjson::Document& doc,
+bool parse_locations(const rapidjson::Document& doc,
                      Options& options,
                      const std::string& node,
                      unsigned location_parse_error_code,
@@ -338,11 +338,11 @@ void parse_locations(const rapidjson::Document& doc,
   } else if (node == "avoid_locations") {
     locations = options.mutable_avoid_locations();
   } else {
-    return;
+    return true;
   }
 
   bool had_date_time = false;
-  bool exclude_closures_disabled = false;
+  bool filter_closures = true;
   auto request_locations =
       rapidjson::get_optional<rapidjson::Value::ConstArray>(doc, std::string("/" + node).c_str());
   if (request_locations) {
@@ -370,9 +370,10 @@ void parse_locations(const rapidjson::Document& doc,
         location->mutable_ll()->set_lng(*lon);
 
         // trace attributes does not support legs or breaks at discontinuities
+        location->set_type(Location::kBreak);
         auto stop_type_json = rapidjson::get_optional<std::string>(r_loc, "/type");
         if (options.action() == Options::trace_attributes) {
-          location->set_type(valhalla::Location::kVia);
+          location->set_type(Location::kVia);
         } // other actions let you specify whatever type of stop you want
         else if (stop_type_json) {
           Location::Type type = Location::kBreak;
@@ -380,7 +381,7 @@ void parse_locations(const rapidjson::Document& doc,
           location->set_type(type);
         } // and if you didnt set it it defaulted to break which is not the default for trace_route
         else if (options.action() == Options::trace_route) {
-          location->set_type(valhalla::Location::kVia);
+          location->set_type(Location::kVia);
         }
 
         auto name = rapidjson::get_optional<std::string>(r_loc, "/name");
@@ -450,16 +451,12 @@ void parse_locations(const rapidjson::Document& doc,
         if (accuracy) {
           location->set_accuracy(*accuracy);
         }
-        auto time = rapidjson::get_optional<unsigned int>(r_loc, "/time");
-        if (time) {
-          location->set_time(*time);
-        }
-        auto rank_candidates = rapidjson::get_optional<bool>(r_loc, "/rank_candidates");
-        if (rank_candidates) {
-          location->set_rank_candidates(*rank_candidates);
-        }
+        location->set_time(rapidjson::get_optional<long>(r_loc, "/time").get_value_or(-1));
+        location->set_rank_candidates(
+            rapidjson::get_optional<bool>(r_loc, "/rank_candidates").get_value_or(true));
+        location->set_preferred_side(Location::either);
         auto preferred_side = rapidjson::get_optional<std::string>(r_loc, "/preferred_side");
-        valhalla::Location::PreferredSide side;
+        Location::PreferredSide side;
         if (preferred_side && PreferredSide_Enum_Parse(*preferred_side, &side)) {
           location->set_preferred_side(side);
         }
@@ -485,6 +482,8 @@ void parse_locations(const rapidjson::Document& doc,
           location->set_street_side_max_distance(*street_side_max_distance);
         }
 
+        location->mutable_search_filter()->set_min_road_class(kServiceOther);
+        location->mutable_search_filter()->set_max_road_class(kMotorway);
         auto search_filter = rapidjson::get_child_optional(r_loc, "/search_filter");
         if (search_filter) {
           // search_filter.min_road_class
@@ -524,11 +523,11 @@ void parse_locations(const rapidjson::Document& doc,
         // do we actually want to filter closures on THIS location
         // NOTE: that ignore_closures takes precedence
         location->mutable_search_filter()->set_exclude_closures(
-            ignore_closures ? !(*ignore_closures) : exclude_closures ? *exclude_closures : true);
-        // set exclude_closures_disabled if any of the locations has the
+            ignore_closures ? !(*ignore_closures) : exclude_closures.get_value_or(true));
+        // set filter_closures to false if any of the locations has the
         // search_filter.exclude_closures set as false
         if (!location->search_filter().exclude_closures()) {
-          exclude_closures_disabled = true;
+          filter_closures = false;
         }
       }
       // Forward valhalla_exception_t types as-is, since they contain a more
@@ -548,17 +547,9 @@ void parse_locations(const rapidjson::Document& doc,
     if (!had_date_time) {
       add_date_to_locations(options, *locations);
     }
-
-    // If any of the locations had search_filter.exclude_closures set to false,
-    // we tell the costing to let all closed roads through, so that we can do
-    // a secondary per-location filtering using loki's search_filter
-    // functionality
-    if (exclude_closures_disabled) {
-      for (auto& costing : *options.mutable_costing_options()) {
-        costing.set_filter_closures(false);
-      }
-    }
   }
+
+  return filter_closures;
 }
 
 void parse_contours(const rapidjson::Document& doc,
@@ -611,6 +602,7 @@ void from_json(rapidjson::Document& doc, Options& options) {
     doc.RemoveMember("directions_options");
   }
 
+  options.set_format(Options::json);
   auto fmt = rapidjson::get_optional<std::string>(doc, "/format");
   Options::Format format;
   if (fmt && Options_Format_Enum_Parse(*fmt, &format)) {
@@ -637,11 +629,11 @@ void from_json(rapidjson::Document& doc, Options& options) {
   }
 
   auto language = rapidjson::get_optional<std::string>(doc, "/language");
-  if (language && odin::get_locales().find(*language) != odin::get_locales().end()) {
-    options.set_language(*language);
-  }
+  auto has_language = language && odin::get_locales().find(*language) != odin::get_locales().end();
+  options.set_language(has_language ? *language : "en-US");
 
   // deprecated
+  options.set_directions_type(DirectionsType::instructions);
   auto narrative = rapidjson::get_optional<bool>(doc, "/narrative");
   if (narrative && !*narrative) {
     options.set_directions_type(DirectionsType::none);
@@ -749,12 +741,38 @@ void from_json(rapidjson::Document& doc, Options& options) {
     rapidjson::SetValueByPointer(doc, "/costing_options/auto/ignore_closures", true);
   }
 
+  // try the string directly, some strings are keywords so add an underscore
+  Costing costing;
+  if (valhalla::Costing_Enum_Parse(costing_str, &costing)) {
+    options.set_costing(costing);
+  } else {
+    throw valhalla_exception_t{125, "'" + costing_str + "'"};
+  }
+
+  // Parse all of the costing options in their specified order
+  sif::ParseCostingOptions(doc, "/costing_options", options);
+
+  // parse any named costings for re-costing a given path
+  auto recostings = rapidjson::get_child_optional(doc, "/recostings");
+  if (recostings && recostings->IsArray()) {
+    for (size_t i = 0; i < recostings->GetArray().Size(); ++i) {
+      // parse the options
+      std::string key = "/recostings/" + std::to_string(i);
+      sif::ParseCostingOptions(doc, key, options.add_recostings());
+      if (!options.recostings().rbegin()->has_name()) {
+        throw valhalla_exception_t{127};
+      }
+    }
+    // TODO: throw if not all names are unique?
+  }
+
   // whatever our costing is, check to see if we are going to ignore_closures
   std::stringstream ss;
   ss << "/costing_options/" << costing_str << "/ignore_closures";
   auto ignore_closures = costing_str != "multimodal"
                              ? rapidjson::get_optional<bool>(doc, ss.str().c_str())
                              : boost::none;
+  bool filter_closures = true;
 
   // parse map matching location input and encoded_polyline for height actions
   auto encoded_polyline = rapidjson::get_optional<std::string>(doc, "/encoded_polyline");
@@ -786,11 +804,12 @@ void from_json(rapidjson::Document& doc, Options& options) {
     add_date_to_locations(options, *options.mutable_shape());
   } // fall back from encoded polyline to array of locations
   else {
-    parse_locations(doc, options, "shape", 134, ignore_closures);
+    filter_closures = parse_locations(doc, options, "shape", 134, ignore_closures) && filter_closures;
 
     // if no shape then try 'trace'
     if (options.shape().size() == 0) {
-      parse_locations(doc, options, "trace", 135, ignore_closures);
+      filter_closures =
+          parse_locations(doc, options, "trace", 135, ignore_closures) && filter_closures;
     }
   }
 
@@ -843,12 +862,10 @@ void from_json(rapidjson::Document& doc, Options& options) {
     }
   }
 
-  // TODO: remove this?
-  options.set_do_not_track(rapidjson::get_optional<bool>(doc, "/healthcheck").get_value_or(false));
-
   // Elevation service options
   options.set_range(rapidjson::get(doc, "/range", false));
   constexpr uint32_t MAX_HEIGHT_PRECISION = 2;
+  options.set_height_precision(0);
   auto height_precision = rapidjson::get_optional<unsigned int>(doc, "/height_precision");
   if (height_precision && *height_precision <= MAX_HEIGHT_PRECISION) {
     options.set_height_precision(*height_precision);
@@ -856,42 +873,27 @@ void from_json(rapidjson::Document& doc, Options& options) {
 
   options.set_verbose(rapidjson::get(doc, "/verbose", false));
 
-  // try the string directly, some strings are keywords so add an underscore
-  Costing costing;
-  if (valhalla::Costing_Enum_Parse(costing_str, &costing)) {
-    options.set_costing(costing);
-  } else {
-    throw valhalla_exception_t{125, "'" + costing_str + "'"};
-  }
-
-  // Parse all of the costing options in their specified order
-  sif::ParseCostingOptions(doc, "/costing_options", options);
-
-  // parse any named costings for re-costing a given path
-  auto recostings = rapidjson::get_child_optional(doc, "/recostings");
-  if (recostings && recostings->IsArray()) {
-    for (size_t i = 0; i < recostings->GetArray().Size(); ++i) {
-      // parse the options
-      std::string key = "/recostings/" + std::to_string(i);
-      sif::ParseCostingOptions(doc, key, options.add_recostings());
-      if (!options.recostings().rbegin()->has_name()) {
-        throw valhalla_exception_t{127};
-      }
-    }
-    // TODO: throw if not all names are unique?
-  }
-
   // get the locations in there
-  parse_locations(doc, options, "locations", 130, ignore_closures);
+  filter_closures =
+      parse_locations(doc, options, "locations", 130, ignore_closures) && filter_closures;
 
   // get the sources in there
-  parse_locations(doc, options, "sources", 131, ignore_closures);
+  filter_closures = parse_locations(doc, options, "sources", 131, ignore_closures) && filter_closures;
 
   // get the targets in there
-  parse_locations(doc, options, "targets", 132, ignore_closures);
+  filter_closures = parse_locations(doc, options, "targets", 132, ignore_closures) && filter_closures;
 
   // get the avoids in there
-  parse_locations(doc, options, "avoid_locations", 133, ignore_closures);
+  filter_closures =
+      parse_locations(doc, options, "avoid_locations", 133, ignore_closures) && filter_closures;
+
+  // If any of the locations had search_filter.exclude_closures set to false,
+  // we tell the costing to let all closed roads through, so that we can do
+  // a secondary per-location filtering using loki's search_filter
+  // functionality
+  for (auto& costing : *options.mutable_costing_options()) {
+    costing.set_filter_closures(filter_closures);
+  }
 
   // if not a time dependent route/mapmatch disable time dependent edge speed/flow data sources
   if (!options.has_date_time_type() && (options.shape_size() == 0 || options.shape(0).time() == -1)) {
@@ -918,6 +920,7 @@ void from_json(rapidjson::Document& doc, Options& options) {
   }
 
   // if specified, get the denoise in there
+  options.set_denoise(1.f);
   auto denoise = rapidjson::get_optional<float>(doc, "/denoise");
   if (denoise) {
     options.set_denoise(std::max(std::min(*denoise, 1.f), 0.f));
@@ -936,9 +939,10 @@ void from_json(rapidjson::Document& doc, Options& options) {
   }
 
   // if specified, get the shape_match in there
+  options.set_shape_match(ShapeMatch::walk_or_snap);
   auto shape_match_str = rapidjson::get_optional<std::string>(doc, "/shape_match");
-  ShapeMatch shape_match;
   if (shape_match_str) {
+    ShapeMatch shape_match;
     if (valhalla::ShapeMatch_Enum_Parse(*shape_match_str, &shape_match)) {
       options.set_shape_match(shape_match);
     } else {
@@ -947,6 +951,7 @@ void from_json(rapidjson::Document& doc, Options& options) {
   }
 
   // if specified, get the best_paths in there
+  options.set_best_paths(1);
   auto best_paths = rapidjson::get_optional<uint32_t>(doc, "/best_paths");
   if (best_paths) {
     options.set_best_paths(*best_paths);
@@ -1012,11 +1017,8 @@ void from_json(rapidjson::Document& doc, Options& options) {
   }
 
   // whether to include roundabout_exit maneuvers, default true
-  auto roundabout_exits = rapidjson::get_optional<bool>(doc, "/roundabout_exits");
-  options.set_roundabout_exits(true);
-  if (roundabout_exits) {
-    options.set_roundabout_exits(*roundabout_exits);
-  }
+  options.set_roundabout_exits(
+      rapidjson::get_optional<bool>(doc, "/roundabout_exits").get_value_or(true));
 
   // force these into the output so its obvious what we did to the user
   doc.AddMember({"language", allocator}, {options.language(), allocator}, allocator);

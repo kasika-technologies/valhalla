@@ -203,7 +203,7 @@ message TripLeg {
     optional bool bridge = 14;
     optional bool roundabout = 15;
     optional bool internal_intersection = 16;
-    optional bool drive_on_right = 17 [default = true];
+    optional bool drive_on_right = 17;
     optional Surface surface = 18;
     optional Sign sign = 19;
     optional TravelMode travel_mode = 20;
