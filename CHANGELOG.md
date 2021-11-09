@@ -15,6 +15,7 @@
    * FIXED: Fixed undefined behavior due to invalid shift exponent when getting edge's heading [#3450](https://github.com/valhalla/valhalla/pull/3450)
 
 * **Enhancement**
+   * ADDED: Ondemand elevation tile fetching []()
    * CHANGED: Pronunciation for names and destinations [#3132](https://github.com/valhalla/valhalla/pull/3132)
    * CHANGED: Requested code clean up for phonemes PR [#3356](https://github.com/valhalla/valhalla/pull/3356)
    * CHANGED: Refactor Pronunciation class to struct [#3359](https://github.com/valhalla/valhalla/pull/3359)
