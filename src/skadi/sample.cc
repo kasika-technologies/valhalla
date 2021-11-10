@@ -6,13 +6,10 @@
 #include <future>
 #include <limits>
 #include <list>
-#include <mutex>
 #include <regex>
 #include <set>
 #include <stdexcept>
-#include <string>
 #include <unordered_map>
-#include <unordered_set>
 
 #include <boost/optional.hpp>
 #include <lz4frame.h>
@@ -506,6 +503,7 @@ tile_data cache_t::source(uint16_t index) {
 sample::sample(const boost::property_tree::ptree& pt)
     : sample(pt.get<std::string>("additional_data.elevation", "")) {
   url_ = pt.get<std::string>("additional_data.elevation_url", "");
+  // this line used only for testing check for more details elevation_builder.cc
   remote_path_ = pt.get<std::string>("additional_data.elevation_dir", "");
 
   auto max_concurrent_users = pt.get<size_t>("mjolnir.max_concurrent_reader_users", 1);
@@ -596,7 +594,7 @@ template <class coords_t> std::vector<double> sample::get_all(const coords_t& co
       value = tile.get(u, v);
     }
 
-    if (value == NO_DATA_VALUE) {
+    if (value == get_no_data_value()) {
       if (!seen.count(coord)) {
         coord_st.push_back(coord);
         seen.insert(coord);
@@ -650,18 +648,18 @@ template <class coord_t> double sample::get_from_remote(const coord_t& coord) {
   }
 
   if (result.status_ != baldr::tile_getter_t::status_code_t::SUCCESS) {
-    LOG_WARN("Failed to load data from remote server address: " + uri);
+    LOG_WARN("Fail to load data from remote server address: " + uri);
     return get_no_data_value();
   }
 
   if (!cache_->store(result.bytes_, elev)) {
-    LOG_WARN("Failed to save loaded data from remote server address: " + uri);
+    LOG_WARN("Fail to save data loaded from remote server address: " + uri);
     return get_no_data_value();
   }
 
   auto res = get_from_cache(coord);
   if (res == get_no_data_value()) {
-    LOG_WARN("Failed to load data from remote server address: " + uri);
+    LOG_WARN("Fail to load data from remote server address: " + uri);
     return get_no_data_value();
   }
 
