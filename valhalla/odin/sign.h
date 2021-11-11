@@ -7,6 +7,7 @@
 #include <boost/optional.hpp>
 
 #include <valhalla/baldr/streetname.h>
+#include <valhalla/proto/tripcommon.pb.h>
 
 namespace valhalla {
 namespace odin {
@@ -17,10 +18,12 @@ public:
    * Constructor.
    * @param  text  Text string.
    * @param  is_route_number   boolean indicating if sign element is a reference route number.
+   * @param  language_tag  the language tag of this sign.
    * @param  pronunciation  the pronunciation of this sign.
    */
   Sign(const std::string& text,
        const bool is_route_number,
+       const valhalla::LanguageTag language_tag = valhalla::LanguageTag::kUnspecified,
        const boost::optional<baldr::Pronunciation>& pronunciation = boost::none);
 
   /**
@@ -63,6 +66,7 @@ protected:
   std::string text_;
   bool is_route_number_;
   uint32_t consecutive_count_;
+  valhalla::LanguageTag language_tag_;
   boost::optional<baldr::Pronunciation> pronunciation_;
 };
 

@@ -9,9 +9,10 @@ namespace odin {
 // Constructor
 Sign::Sign(const std::string& text,
            const bool is_route_number,
+           const valhalla::LanguageTag language_tag,
            const boost::optional<baldr::Pronunciation>& pronunciation)
     : text_(text), is_route_number_(is_route_number), consecutive_count_(0),
-      pronunciation_(pronunciation) {
+      language_tag_(language_tag), pronunciation_(pronunciation) {
 }
 
 const std::string& Sign::text() const {
