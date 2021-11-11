@@ -43,11 +43,12 @@ const constexpr char* kDataPathPattern = "{DataPath}";
 template <typename T>
 void parallel_call(const std::function<double(const T&)>& func,
                    std::vector<T> st,
-                   std::vector<double>& result) {
+                   std::vector<double>& result,
+                   std::uint32_t num_threads = 1) {
   if (!func || st.empty())
     return;
 
-  std::uint32_t size = std::max(1U, std::thread::hardware_concurrency());
+  std::uint32_t size = std::max(1U, std::min(std::thread::hardware_concurrency(), num_threads));
   std::vector<std::thread> threads;
   threads.reserve(size);
   std::mutex m;
@@ -512,6 +513,7 @@ sample::sample(const boost::property_tree::ptree& pt)
                                                   pt.get<std::string>("mjolnir.user_agent", ""),
                                                   pt.get<bool>("additional_data.elevation_url_gz",
                                                                false));
+  num_threads_ = pt.get<std::uint32_t>("mjolnir.concurrency", 1);
 }
 
 sample::sample(const std::string& data_source) {
@@ -609,7 +611,7 @@ template <class coords_t> std::vector<double> sample::get_all(const coords_t& co
     return this->get_from_remote(param);
   };
 
-  parallel_call(func, coord_st, values);
+  parallel_call(func, coord_st, values, num_threads_);
 
   return values;
 }
