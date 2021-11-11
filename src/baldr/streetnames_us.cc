@@ -16,7 +16,9 @@ StreetNamesUs::StreetNamesUs() : StreetNames() {
 
 StreetNamesUs::StreetNamesUs(const std::vector<std::pair<std::string, bool>>& names) {
   for (auto& name : names) {
-    this->emplace_back(std::make_unique<StreetNameUs>(name.first, name.second, boost::none));
+    this->emplace_back(std::make_unique<StreetNameUs>(name.first, name.second,
+                                                      valhalla::LanguageTag::kUnspecified,
+                                                      boost::none));
   }
 }
 
@@ -27,8 +29,8 @@ StreetNamesUs::StreetNamesUs(const google::protobuf::RepeatedPtrField<valhalla::
                              baldr::Pronunciation{name.pronunciation().alphabet(),
                                                   name.pronunciation().value()});
 
-    this->emplace_back(
-        std::make_unique<StreetNameUs>(name.value(), name.is_route_number(), pronunciation));
+    this->emplace_back(std::make_unique<StreetNameUs>(name.value(), name.is_route_number(),
+                                                      name.language_tag(), pronunciation));
   }
 }
 
@@ -38,9 +40,9 @@ StreetNamesUs::~StreetNamesUs() {
 std::unique_ptr<StreetNames> StreetNamesUs::clone() const {
   std::unique_ptr<StreetNames> clone_street_names = std::make_unique<StreetNamesUs>();
   for (const auto& street_name : *this) {
-    clone_street_names->emplace_back(std::make_unique<StreetNameUs>(street_name->value(),
-                                                                    street_name->is_route_number(),
-                                                                    street_name->pronunciation()));
+    clone_street_names->emplace_back(
+        std::make_unique<StreetNameUs>(street_name->value(), street_name->is_route_number(),
+                                       street_name->language_tag(), street_name->pronunciation()));
   }
 
   return clone_street_names;
@@ -54,6 +56,7 @@ StreetNamesUs::FindCommonStreetNames(const StreetNames& other_street_names) cons
       if (*street_name == *other_street_name) {
         common_street_names->emplace_back(
             std::make_unique<StreetNameUs>(street_name->value(), street_name->is_route_number(),
+                                           street_name->language_tag(),
                                            street_name->pronunciation()));
         break;
       }
@@ -74,16 +77,19 @@ StreetNamesUs::FindCommonBaseNames(const StreetNames& other_street_names) const 
         if (!street_name->GetPostCardinalDir().empty()) {
           common_base_names->emplace_back(
               std::make_unique<StreetNameUs>(street_name->value(), street_name->is_route_number(),
+                                             street_name->language_tag(),
                                              street_name->pronunciation()));
         } else if (!other_street_name->GetPostCardinalDir().empty()) {
           common_base_names->emplace_back(
               std::make_unique<StreetNameUs>(other_street_name->value(),
                                              other_street_name->is_route_number(),
+                                             other_street_name->language_tag(),
                                              other_street_name->pronunciation()));
           // Use street_name by default
         } else {
           common_base_names->emplace_back(
               std::make_unique<StreetNameUs>(street_name->value(), street_name->is_route_number(),
+                                             street_name->language_tag(),
                                              street_name->pronunciation()));
         }
         break;
@@ -98,9 +104,9 @@ std::unique_ptr<StreetNames> StreetNamesUs::GetRouteNumbers() const {
   std::unique_ptr<StreetNames> route_numbers = std::make_unique<StreetNamesUs>();
   for (const auto& street_name : *this) {
     if (street_name->is_route_number()) {
-      route_numbers->emplace_back(std::make_unique<StreetNameUs>(street_name->value(),
-                                                                 street_name->is_route_number(),
-                                                                 street_name->pronunciation()));
+      route_numbers->emplace_back(
+          std::make_unique<StreetNameUs>(street_name->value(), street_name->is_route_number(),
+                                         street_name->language_tag(), street_name->pronunciation()));
     }
   }
 
@@ -111,9 +117,9 @@ std::unique_ptr<StreetNames> StreetNamesUs::GetNonRouteNumbers() const {
   std::unique_ptr<StreetNames> non_route_numbers = std::make_unique<StreetNamesUs>();
   for (const auto& street_name : *this) {
     if (!street_name->is_route_number()) {
-      non_route_numbers->emplace_back(std::make_unique<StreetNameUs>(street_name->value(),
-                                                                     street_name->is_route_number(),
-                                                                     street_name->pronunciation()));
+      non_route_numbers->emplace_back(
+          std::make_unique<StreetNameUs>(street_name->value(), street_name->is_route_number(),
+                                         street_name->language_tag(), street_name->pronunciation()));
     }
   }
 

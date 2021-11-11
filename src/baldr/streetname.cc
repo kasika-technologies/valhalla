@@ -10,8 +10,10 @@ namespace baldr {
 // Constructor
 StreetName::StreetName(const std::string& value,
                        const bool is_route_number,
+                       const valhalla::LanguageTag language_tag,
                        const boost::optional<baldr::Pronunciation>& pronunciation)
-    : value_(value), is_route_number_(is_route_number), pronunciation_(pronunciation) {
+    : value_(value), is_route_number_(is_route_number), language_tag_(language_tag),
+      pronunciation_(pronunciation) {
 }
 
 StreetName::~StreetName() {
@@ -19,6 +21,10 @@ StreetName::~StreetName() {
 
 const std::string& StreetName::value() const {
   return value_;
+}
+
+valhalla::LanguageTag StreetName::language_tag() const {
+  return language_tag_;
 }
 
 bool StreetName::is_route_number() const {

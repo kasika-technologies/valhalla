@@ -22,10 +22,12 @@ public:
    * Constructor.
    * @param  value  Street name string.
    * @param  is_route_number  boolean indicating if street name is a reference route number.
+   * @param  language_tag  the language tag of this street name.
    * @param  pronunciation  the pronunciation of this street name.
    */
   StreetName(const std::string& value,
              const bool is_route_number,
+             const valhalla::LanguageTag language_tag = valhalla::LanguageTag::kUnspecified,
              const boost::optional<baldr::Pronunciation>& pronunciation = boost::none);
 
   virtual ~StreetName();
@@ -37,6 +39,12 @@ public:
    * @return true if street name is a reference route number such as: I 81 South or US 322 West.
    */
   bool is_route_number() const;
+
+  /**
+   * Returns the language tag of this street name.
+   * @return the language tag of this street name.
+   */
+  valhalla::LanguageTag language_tag() const;
 
   /**
    * Returns the pronunciation of this street name.
@@ -63,6 +71,7 @@ public:
 protected:
   std::string value_;
   bool is_route_number_;
+  valhalla::LanguageTag language_tag_;
   boost::optional<baldr::Pronunciation> pronunciation_;
 };
 
