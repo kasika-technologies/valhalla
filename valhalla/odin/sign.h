@@ -51,6 +51,12 @@ public:
   void set_consecutive_count(uint32_t consecutive_count);
 
   /**
+   * Returns the language tag of this sign.
+   * @return the language tag of this sign.
+   */
+  valhalla::LanguageTag language_tag() const;
+
+  /**
    * Returns the pronunciation of this sign.
    * @return the pronunciation of this sign.
    */

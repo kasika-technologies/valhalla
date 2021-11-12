@@ -31,6 +31,10 @@ void Sign::set_consecutive_count(uint32_t consecutive_count) {
   consecutive_count_ = consecutive_count;
 }
 
+valhalla::LanguageTag Sign::language_tag() const {
+  return language_tag_;
+}
+
 const boost::optional<baldr::Pronunciation>& Sign::pronunciation() const {
   return pronunciation_;
 }

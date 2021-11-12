@@ -156,6 +156,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
       auto* maneuver_street_name = trip_maneuver->add_street_name();
       maneuver_street_name->set_value(street_name->value());
       maneuver_street_name->set_is_route_number(street_name->is_route_number());
+      maneuver_street_name->set_language_tag(street_name->language_tag());
       if (street_name->pronunciation()) {
         auto* pronunciation = maneuver_street_name->mutable_pronunciation();
         pronunciation->set_alphabet(street_name->pronunciation()->alphabet);
@@ -168,6 +169,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
       auto* maneuver_begin_street_name = trip_maneuver->add_begin_street_name();
       maneuver_begin_street_name->set_value(begin_street_name->value());
       maneuver_begin_street_name->set_is_route_number(begin_street_name->is_route_number());
+      maneuver_begin_street_name->set_language_tag(begin_street_name->language_tag());
       if (begin_street_name->pronunciation()) {
         auto* pronunciation = maneuver_begin_street_name->mutable_pronunciation();
         pronunciation->set_alphabet(begin_street_name->pronunciation()->alphabet);
@@ -223,6 +225,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
           auto* trip_exit_number = trip_sign->mutable_exit_numbers()->Add();
           trip_exit_number->set_text(exit_number.text());
           trip_exit_number->set_is_route_number(exit_number.is_route_number());
+          trip_exit_number->set_language_tag(exit_number.language_tag());
           trip_exit_number->set_consecutive_count(exit_number.consecutive_count());
           if (exit_number.pronunciation()) {
             auto* pronunciation = trip_exit_number->mutable_pronunciation();
@@ -238,6 +241,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
           auto* trip_exit_onto_street = trip_sign->mutable_exit_onto_streets()->Add();
           trip_exit_onto_street->set_text(exit_branch.text());
           trip_exit_onto_street->set_is_route_number(exit_branch.is_route_number());
+          trip_exit_onto_street->set_language_tag(exit_branch.language_tag());
           trip_exit_onto_street->set_consecutive_count(exit_branch.consecutive_count());
           if (exit_branch.pronunciation()) {
             auto* pronunciation = trip_exit_onto_street->mutable_pronunciation();
@@ -253,6 +257,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
           auto* trip_exit_toward_location = trip_sign->mutable_exit_toward_locations()->Add();
           trip_exit_toward_location->set_text(exit_toward.text());
           trip_exit_toward_location->set_is_route_number(exit_toward.is_route_number());
+          trip_exit_toward_location->set_language_tag(exit_toward.language_tag());
           trip_exit_toward_location->set_consecutive_count(exit_toward.consecutive_count());
           if (exit_toward.pronunciation()) {
             auto* pronunciation = trip_exit_toward_location->mutable_pronunciation();
@@ -268,6 +273,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
           auto* trip_exit_name = trip_sign->mutable_exit_names()->Add();
           trip_exit_name->set_text(exit_name.text());
           trip_exit_name->set_is_route_number(exit_name.is_route_number());
+          trip_exit_name->set_language_tag(exit_name.language_tag());
           trip_exit_name->set_consecutive_count(exit_name.consecutive_count());
           if (exit_name.pronunciation()) {
             auto* pronunciation = trip_exit_name->mutable_pronunciation();
@@ -283,6 +289,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
           auto* trip_guide_onto_street = trip_sign->mutable_guide_onto_streets()->Add();
           trip_guide_onto_street->set_text(guide_branch.text());
           trip_guide_onto_street->set_is_route_number(guide_branch.is_route_number());
+          trip_guide_onto_street->set_language_tag(guide_branch.language_tag());
           trip_guide_onto_street->set_consecutive_count(guide_branch.consecutive_count());
           if (guide_branch.pronunciation()) {
             auto* pronunciation = trip_guide_onto_street->mutable_pronunciation();
@@ -298,6 +305,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
           auto* trip_guide_toward_location = trip_sign->mutable_guide_toward_locations()->Add();
           trip_guide_toward_location->set_text(guide_toward.text());
           trip_guide_toward_location->set_is_route_number(guide_toward.is_route_number());
+          trip_guide_toward_location->set_language_tag(guide_toward.language_tag());
           trip_guide_toward_location->set_consecutive_count(guide_toward.consecutive_count());
           if (guide_toward.pronunciation()) {
             auto* pronunciation = trip_guide_toward_location->mutable_pronunciation();
@@ -313,6 +321,7 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
           auto* trip_junction_name = trip_sign->mutable_junction_names()->Add();
           trip_junction_name->set_text(junction_name.text());
           trip_junction_name->set_is_route_number(junction_name.is_route_number());
+          trip_junction_name->set_language_tag(junction_name.language_tag());
           trip_junction_name->set_consecutive_count(junction_name.consecutive_count());
           if (junction_name.pronunciation()) {
             auto* pronunciation = trip_junction_name->mutable_pronunciation();
@@ -339,6 +348,8 @@ void DirectionsBuilder::PopulateDirectionsLeg(const Options& options,
       maneuver_roundabout_exit_street_name->set_value(roundabout_exit_street_name->value());
       maneuver_roundabout_exit_street_name->set_is_route_number(
           roundabout_exit_street_name->is_route_number());
+      maneuver_roundabout_exit_street_name->set_language_tag(
+          roundabout_exit_street_name->language_tag());
       if (roundabout_exit_street_name->pronunciation()) {
         auto* pronunciation = maneuver_roundabout_exit_street_name->mutable_pronunciation();
         pronunciation->set_alphabet(roundabout_exit_street_name->pronunciation()->alphabet);
