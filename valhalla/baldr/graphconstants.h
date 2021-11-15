@@ -367,7 +367,6 @@ enum class TaggedValue : uint8_t { // must start at 1 due to nulls
   // see https://github.com/valhalla/valhalla/issues/3262
   kTunnel = static_cast<uint8_t>('1'),
   kBridge = static_cast<uint8_t>('2'),
-
 };
 
 enum class PronunciationAlphabet : uint8_t {
