@@ -40,54 +40,21 @@ const constexpr char* kDataPathPattern = "{DataPath}";
 // macro is faster than inline function for this...
 #define out_of_range(v) v > NO_DATA_HIGH || v < NO_DATA_LOW
 
-template <typename T>
-void parallel_call(const std::function<double(const T&)>& func,
-                   std::vector<T> st,
-                   std::vector<double>& result,
-                   std::uint32_t num_threads = 1) {
-  if (!func || st.empty())
-    return;
-
-  std::uint32_t size = std::max(1U, std::min(std::thread::hardware_concurrency(), num_threads));
-  std::vector<std::thread> threads;
-  threads.reserve(size);
-  std::mutex m;
-  for (std::size_t i = 0; i < size; ++i) {
-    threads.emplace_back([&]() {
-      while (!st.empty()) {
-        m.lock();
-        if (st.empty()) {
-          m.unlock();
-          return;
-        }
-
-        auto param = st.back();
-        st.pop_back();
-        m.unlock();
-
-        result.push_back(func(param));
-      }
-    });
-  }
-
-  std::for_each(std::begin(threads), std::end(threads), [](auto& thread) { thread.join(); });
-}
-
-std::vector<std::string> get_files(const std::string& root_dir) {
-  std::vector<std::string> files;
-  if (filesystem::exists(root_dir) && filesystem::is_directory(root_dir)) {
-    for (filesystem::recursive_directory_iterator i(root_dir), end; i != end; ++i) {
-      if (i->is_regular_file() || i->is_symlink()) {
-        files.push_back(i->path().string());
-      }
-    }
-  }
-  // couldn't get data
-  if (files.empty()) {
-    LOG_WARN(root_dir + " currently has no elevation tiles");
-  }
-  return files;
-}
+//std::vector<std::string> get_files(const std::string& root_dir) {
+//  std::vector<std::string> files;
+//  if (filesystem::exists(root_dir) && filesystem::is_directory(root_dir)) {
+//    for (filesystem::recursive_directory_iterator i(root_dir), end; i != end; ++i) {
+//      if (i->is_regular_file() || i->is_symlink()) {
+//        files.push_back(i->path().string());
+//      }
+//    }
+//  }
+//  // couldn't get data
+//  if (files.empty()) {
+//    LOG_WARN(root_dir + " currently has no elevation tiles");
+//  }
+//  return files;
+//}
 
 int16_t flip(int16_t value) {
   return ((value & 0xFF) << 8) | ((value >> 8) & 0xFF);
@@ -482,7 +449,7 @@ sample::sample(const std::string& data_source) {
   cache_->cache.resize(TILE_COUNT);
 
   // check the directory for files that look like what we need
-  auto files = get_files(data_source);
+  auto files = filesystem::get_files(data_source, true);
   for (const auto& f : files) {
     // make sure its a valid index
     auto data = cache_item_t::parse_hgt_name(f);
@@ -524,9 +491,6 @@ template <class coords_t> std::vector<double> sample::get_all(const coords_t& co
   values.reserve(coords.size());
   uint16_t curIndex = TILE_COUNT;
   tile_data tile(cache_, TILE_COUNT, false, nullptr);
-  auto elem = coords.front();
-  std::set<decltype(elem)> seen;
-  std::vector<decltype(elem)> coord_st;
   for (const auto& coord : coords) {
     auto lon = std::floor(coord.first);
     auto lat = std::floor(coord.second);
@@ -537,29 +501,18 @@ template <class coords_t> std::vector<double> sample::get_all(const coords_t& co
       curIndex = index;
     }
 
-    double value = NO_DATA_VALUE;
+    double value{get_no_data_value()};
     if (tile) {
       double u = (coord.first - lon) * (HGT_DIM - 1);
       double v = (1.0 - (coord.second - lat)) * (HGT_DIM - 1);
       value = tile.get(u, v);
     }
 
-    if (value == get_no_data_value()) {
-      if (!seen.count(coord)) {
-        coord_st.push_back(coord);
-        seen.insert(coord);
-      }
-      continue;
-    }
+    if (value == get_no_data_value())
+        value = get_from_remote(coord);
 
     values.emplace_back(value);
   }
-
-  std::function<double(const decltype(elem)&)> func = [this](const decltype(elem)& param) -> double {
-    return this->get_from_remote(param);
-  };
-
-  parallel_call(func, coord_st, values, num_threads_);
 
   return values;
 }
