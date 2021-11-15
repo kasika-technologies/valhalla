@@ -40,7 +40,7 @@ const constexpr char* kDataPathPattern = "{DataPath}";
 // macro is faster than inline function for this...
 #define out_of_range(v) v > NO_DATA_HIGH || v < NO_DATA_LOW
 
-//std::vector<std::string> get_files(const std::string& root_dir) {
+// std::vector<std::string> get_files(const std::string& root_dir) {
 //  std::vector<std::string> files;
 //  if (filesystem::exists(root_dir) && filesystem::is_directory(root_dir)) {
 //    for (filesystem::recursive_directory_iterator i(root_dir), end; i != end; ++i) {
@@ -509,7 +509,7 @@ template <class coords_t> std::vector<double> sample::get_all(const coords_t& co
     }
 
     if (value == get_no_data_value())
-        value = get_from_remote(coord);
+      value = get_from_remote(coord);
 
     values.emplace_back(value);
   }
@@ -563,11 +563,6 @@ template <class coord_t> double sample::get_from_remote(const coord_t& coord) {
   LOG_INFO("Start loading data from remote server address: " + uri);
   int repeat{3};
   auto result = remote_loader_->get(uri);
-  /// TODO(kormulev): move this logic to tile_getter_t
-  while (repeat-- > 0 && result.status_ != baldr::tile_getter_t::status_code_t::SUCCESS) {
-    result = remote_loader_->get(uri);
-  }
-
   if (result.status_ != baldr::tile_getter_t::status_code_t::SUCCESS) {
     LOG_WARN("Fail to load data from remote server address: " + uri);
     return get_no_data_value();
