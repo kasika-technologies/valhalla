@@ -81,7 +81,9 @@ protected:
           {"destination:ref", "I 70 West"},
           {"destination:ref:lang:ru", "Я 70 Запад"}}},
         {"OPMQ",
-         {{"highway", "secondary"}, {"name", "West 8th Street"}, {"name:ru", "Западная 8-я стрит"}}},
+         {{"highway", "secondary"},
+          {"name:en", "West 8th Street"},
+          {"name:ru", "Западная 8-я стрит"}}},
         {"DP",
          {{"highway", "secondary_link"},
           {"name", ""},
@@ -193,6 +195,7 @@ TEST_F(RouteWithStreetnameAndSignEnUs, CheckStreetNamesAndSigns1) {
             LanguageTag::kUnspecified);
 
   // Verify street name language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
   ++maneuver_index;
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
@@ -341,7 +344,7 @@ TEST_F(RouteWithStreetnameAndSignEnUs, CheckGuideSigns) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-TEST_F(RouteWithStreetnameAndSignEnUs, CheckJunctionName) {
+TEST_F(RouteWithStreetnameAndSignEnUs, CheckNonJunctionName) {
   auto result = gurka::do_action(valhalla::Options::route, map, {"J", "Q"}, "auto");
   gurka::assert::raw::expect_path(result, {"6th Avenue/SR 37", "6th Avenue/SR 37", "6th Avenue/SR 37",
                                            "6th Avenue/SR 37", "West 8th Street"});
@@ -354,10 +357,22 @@ TEST_F(RouteWithStreetnameAndSignEnUs, CheckJunctionName) {
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
             "SR 37");
 
-  // Verify sign language tag is en
-  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  // Verify street name language tag is en
   ++maneuver_index;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 1);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "West 8th Street");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(0)
+                .language_tag(),
+            LanguageTag::kEn);
+
   /*
+  // Verify sign language tag is en
+  ++maneuver_index;
   EXPECT_EQ(result.directions()
                 .routes(0)
                 .legs(0)

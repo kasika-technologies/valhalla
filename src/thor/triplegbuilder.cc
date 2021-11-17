@@ -851,6 +851,8 @@ TripLeg_Edge* AddTripEdge(const AttributesController& controller,
         std::cout << name_and_type.first
                   << " language: " << to_string(static_cast<Language>(lang_iter->second))
                   << std::endl;
+        trip_edge_name->set_language_tag(
+            GetTripLanguageTag(static_cast<Language>(lang_iter->second)));
       }
 
       name_index++;
