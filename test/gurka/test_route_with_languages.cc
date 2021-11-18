@@ -7,7 +7,7 @@
 
 using namespace valhalla;
 
-class RouteWithStreetnameAndSignEnUs : public ::testing::Test {
+class RouteWithStreetnameAndSign_en_UnitedStates : public ::testing::Test {
 protected:
   static gurka::map map;
 
@@ -99,16 +99,16 @@ protected:
         gurka::detail::map_to_coordinates(ascii_map, gridsize_metres, {-82.68811, 40.22535});
     // TODO: determine the final name for language_admin.sqlite
     map = gurka::buildtiles(layout, ways, nodes, {},
-                            "test/data/gurka_route_with_streetname_and_sign_en_us",
+                            "test/data/gurka_route_with_streetname_and_sign_en_UnitedStates",
                             {{"mjolnir.admin",
                               {VALHALLA_SOURCE_DIR "test/data/language_admin.sqlite"}}});
   }
 };
 
-gurka::map RouteWithStreetnameAndSignEnUs::map = {};
+gurka::map RouteWithStreetnameAndSign_en_UnitedStates::map = {};
 
 ///////////////////////////////////////////////////////////////////////////////
-TEST_F(RouteWithStreetnameAndSignEnUs, CheckStreetNamesAndSigns1) {
+TEST_F(RouteWithStreetnameAndSign_en_UnitedStates, CheckStreetNamesAndSigns1) {
   auto result = gurka::do_action(valhalla::Options::route, map, {"A", "D"}, "auto");
   gurka::assert::raw::expect_path(result, {"I 70", "", "6th Avenue/SR 37"});
 
@@ -219,7 +219,7 @@ TEST_F(RouteWithStreetnameAndSignEnUs, CheckStreetNamesAndSigns1) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-TEST_F(RouteWithStreetnameAndSignEnUs, CheckStreetNamesAndSigns2) {
+TEST_F(RouteWithStreetnameAndSign_en_UnitedStates, CheckStreetNamesAndSigns2) {
   auto result = gurka::do_action(valhalla::Options::route, map, {"G", "J"}, "auto");
   gurka::assert::raw::expect_path(result, {"I 70", "", "6th Avenue/SR 37"});
 
@@ -276,7 +276,7 @@ TEST_F(RouteWithStreetnameAndSignEnUs, CheckStreetNamesAndSigns2) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-TEST_F(RouteWithStreetnameAndSignEnUs, CheckGuideSigns) {
+TEST_F(RouteWithStreetnameAndSign_en_UnitedStates, CheckGuideSigns) {
   auto result = gurka::do_action(valhalla::Options::route, map, {"J", "O"}, "auto");
   gurka::assert::raw::expect_path(result, {"6th Avenue/SR 37", "6th Avenue/SR 37", "6th Avenue/SR 37",
                                            "", "West 8th Street"});
@@ -286,7 +286,7 @@ TEST_F(RouteWithStreetnameAndSignEnUs, CheckGuideSigns) {
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
             "6th Avenue");
-  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(01).value(),
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
             "SR 37");
 
   // Verify sign language tag is en
@@ -344,7 +344,7 @@ TEST_F(RouteWithStreetnameAndSignEnUs, CheckGuideSigns) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-TEST_F(RouteWithStreetnameAndSignEnUs, CheckNonJunctionName) {
+TEST_F(RouteWithStreetnameAndSign_en_UnitedStates, CheckNonJunctionName) {
   auto result = gurka::do_action(valhalla::Options::route, map, {"J", "Q"}, "auto");
   gurka::assert::raw::expect_path(result, {"6th Avenue/SR 37", "6th Avenue/SR 37", "6th Avenue/SR 37",
                                            "6th Avenue/SR 37", "West 8th Street"});
@@ -405,4 +405,390 @@ TEST_F(RouteWithStreetnameAndSignEnUs, CheckNonJunctionName) {
       "Turn left at M Junction (<span class=\"phoneme\">/ɛm ˈʤʌŋkʃən/</span>).",
       "Continue for 400 meters.");
 */
+}
+
+class RouteWithStreetnameAndSign_fr_nl_BrusselsBelgium : public ::testing::Test {
+protected:
+  static gurka::map map;
+
+  static void SetUpTestSuite() {
+    constexpr double gridsize_metres = 100;
+
+    const std::string ascii_map = R"(
+                       J
+                       |
+                       |
+                       |
+                       I
+                      /|\
+                    /  |  \
+                  /    |    \
+           L----K-------------H----G
+           A----B-------------E----F
+                  \    |    /
+                    \  |  /
+                      \|/
+                       C
+                       |
+                       |
+                       |
+                       D
+               O------PM------Q
+                       |
+                       |
+                       |
+                       N
+
+    )";
+
+    const gurka::ways ways = {
+        {"ABEF", {{"highway", "motorway"}, {"name", ""}, {"ref", "E40"}, {"oneway", "yes"}}},
+        {"GHKL", {{"highway", "motorway"}, {"name", ""}, {"ref", "E40"}, {"oneway", "yes"}}},
+        {"JICDMN",
+         {{"highway", "primary"},
+          {"name", "Rue Bodenbroek - Bodenbroekstraat"},
+          {"name:fr", "Rue Bodenbroek"},
+          {"name:nl", "Bodenbroekstraat"},
+          {"ref", "N6"}}},
+        {"BC",
+         {{"highway", "motorway_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"junction:ref", "12"},
+          {"destination", "Brussel;Namen"},
+          {"destination:street", "Bodenbroekstraat"},
+          {"destination:street:lang:fr", "Rue Bodenbroek"},
+          {"destination:street:lang:nl", "Bodenbroekstraat"},
+          {"destination:ref", "N6"}}},
+        {"CE",
+         {{"highway", "motorway_link"}, {"name", ""}, {"oneway", "yes"}, {"destination:ref", "E40"}}},
+        {"HI",
+         {{"highway", "motorway_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"junction:ref", "12"},
+          {"destination:street:to", "Koningsstraat"},
+          {"destination:street:to:lang:fr", "Rue Royale"},
+          {"destination:street:to:lang:nl", "Koningsstraat"},
+          {"destination:ref:to", "E19"}}},
+        {"IK",
+         {{"highway", "motorway_link"}, {"name", ""}, {"oneway", "yes"}, {"destination:ref", "E40"}}},
+        {"OPMQ",
+         {{"highway", "secondary"},
+          {"name", "Rue Lebeau - Lebeaustraat"},
+          {"name:fr", "Rue Lebeau"},
+          {"name:nl", "Lebeaustraat"}}},
+        {"DP",
+         {{"highway", "secondary_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"destination", "Brussel"},
+          {"destination:street", "Lebeaustraat"},
+          {"destination:street:lang:fr", "Rue Lebeau"},
+          {"destination:street:lang:nl", "Lebeaustraat"}}},
+    };
+
+    const gurka::nodes nodes = {{"M", {{"highway", "traffic_signals"}, {"name", "Zaventem"}}}};
+
+    const auto layout =
+        gurka::detail::map_to_coordinates(ascii_map, gridsize_metres, {4.3516970, 50.8465573});
+    // TODO: determine the final name for language_admin.sqlite
+    map = gurka::buildtiles(layout, ways, nodes, {},
+                            "test/data/gurka_route_with_streetname_and_sign_fr_nl_BrusselsBelgium",
+                            {{"mjolnir.admin",
+                              {VALHALLA_SOURCE_DIR "test/data/language_admin.sqlite"}}});
+  }
+};
+
+gurka::map RouteWithStreetnameAndSign_fr_nl_BrusselsBelgium::map = {};
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_fr_nl_BrusselsBelgium, CheckStreetNamesAndSigns1) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"A", "D"}, "auto");
+  gurka::assert::raw::expect_path(result, {"E40", "", "Rue Bodenbroek/Bodenbroekstraat/N6"});
+
+  // Verify starting on E40
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 1);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "E40");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets_size(),
+            2);
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(0)
+                .text(),
+            "N6");
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(1)
+                .text(),
+            "Bodenbroekstraat");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations_size(),
+            2);
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .text(),
+            "Brussel");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .text(),
+            "Namen");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  // Verify street name language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Rue Bodenbroek");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(0)
+                .language_tag(),
+            LanguageTag::kFr);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "Bodenbroekstraat");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(1)
+                .language_tag(),
+            LanguageTag::kNl);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "N6");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(2)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_fr_nl_BrusselsBelgium, CheckStreetNamesAndSigns2) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"G", "J"}, "auto");
+  gurka::assert::raw::expect_path(result, {"E40", "", "Rue Bodenbroek/Bodenbroekstraat/N6"});
+
+  // Verify starting on E40
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 1);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "E40");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations_size(),
+            2);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .text(),
+            "E19");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .text(),
+            "Koningsstraat");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_fr_nl_BrusselsBelgium, CheckGuideSigns) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"J", "O"}, "auto");
+  gurka::assert::raw::expect_path(result, {"Rue Bodenbroek/Bodenbroekstraat/N6",
+                                           "Rue Bodenbroek/Bodenbroekstraat/N6",
+                                           "Rue Bodenbroek/Bodenbroekstraat/N6", "",
+                                           "Rue Lebeau/Lebeaustraat"});
+
+  // Verify starting on Rue Bodenbroek/Bodenbroekstraat/N6
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Rue Bodenbroek");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "Bodenbroekstraat");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "N6");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets_size(),
+            1);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets(0)
+                .text(),
+            "Lebeaustraat");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations_size(),
+            1);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations(0)
+                .text(),
+            "Brussel");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_fr_nl_BrusselsBelgium, CheckNonJunctionName) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"J", "Q"}, "auto");
+  gurka::assert::raw::expect_path(result,
+                                  {"Rue Bodenbroek/Bodenbroekstraat/N6",
+                                   "Rue Bodenbroek/Bodenbroekstraat/N6",
+                                   "Rue Bodenbroek/Bodenbroekstraat/N6",
+                                   "Rue Bodenbroek/Bodenbroekstraat/N6", "Rue Lebeau/Lebeaustraat"});
+
+  // Verify starting on Rue Bodenbroek/Bodenbroekstraat/N6
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Rue Bodenbroek");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "Bodenbroekstraat");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "N6");
+
+  // Verify street name language tag is en
+  ++maneuver_index;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Rue Lebeau");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(0)
+                .language_tag(),
+            LanguageTag::kFr);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "Lebeaustraat");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(1)
+                .language_tag(),
+            LanguageTag::kNl);
 }
