@@ -75,6 +75,7 @@ public:
 
   bool init(const std::string& path, format_t format) {
     auto size = file_size(path);
+
     if (format == format_t::RAW && size != HGT_BYTES) {
       return false;
     }
@@ -401,7 +402,6 @@ tile_data cache_t::source(uint16_t index) {
 sample::sample(const boost::property_tree::ptree& pt)
     : sample(pt.get<std::string>("additional_data.elevation", "")) {
   url_ = pt.get<std::string>("additional_data.elevation_url", "");
-  // this line used only for testing check for more details elevation_builder.cc
 
   auto max_concurrent_users = pt.get<size_t>("mjolnir.max_concurrent_reader_users", 1);
   remote_loader_ =
@@ -409,6 +409,8 @@ sample::sample(const boost::property_tree::ptree& pt)
                                                   pt.get<std::string>("mjolnir.user_agent", ""),
                                                   pt.get<bool>("additional_data.elevation_url_gz",
                                                                false));
+
+  // this line used only for testing check for more details elevation_builder.cc
   remote_loader_->set_remote_path(pt.get<std::string>("additional_data.elevation_dir", ""));
   remote_loader_->set_path_pattern(kDataPathPattern);
 
@@ -525,7 +527,8 @@ bool sample::store(const std::string& elev, const std::vector<char>& raw_data) {
 
   if (!filesystem::save(fpath, raw_data))
     return false;
-  return cache_->cache[data->first].init(fpath, data->second);
+  auto res = cache_->cache[data->first].init(fpath, data->second);
+  return res;
 }
 
 template <class coord_t> double sample::get_from_remote(const coord_t& coord) {
@@ -545,8 +548,8 @@ template <class coord_t> double sample::get_from_remote(const coord_t& coord) {
   }
 
   LOG_INFO("Start loading data from remote server address: " + uri);
-  int repeat{3};
   auto result = remote_loader_->get(uri);
+
   if (result.status_ != baldr::tile_getter_t::status_code_t::SUCCESS) {
     LOG_WARN("Fail to load data from remote server address: " + uri);
     return get_no_data_value();
