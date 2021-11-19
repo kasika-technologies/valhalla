@@ -792,3 +792,389 @@ TEST_F(RouteWithStreetnameAndSign_fr_nl_BrusselsBelgium, CheckNonJunctionName) {
                 .language_tag(),
             LanguageTag::kNl);
 }
+
+class RouteWithStreetnameAndSign_ru_be_MinskBelarus : public ::testing::Test {
+protected:
+  static gurka::map map;
+
+  static void SetUpTestSuite() {
+    constexpr double gridsize_metres = 100;
+
+    const std::string ascii_map = R"(
+                       J
+                       |
+                       |
+                       |
+                       I
+                      /|\
+                    /  |  \
+                  /    |    \
+           L----K-------------H----G
+           A----B-------------E----F
+                  \    |    /
+                    \  |  /
+                      \|/
+                       C
+                       |
+                       |
+                       |
+                       D
+               O------PM------Q
+                       |
+                       |
+                       |
+                       N
+
+    )";
+
+    const gurka::ways ways = {
+        {"ABEF", {{"highway", "motorway"}, {"name", ""}, {"ref", "М2"}, {"oneway", "yes"}}},
+        {"GHKL", {{"highway", "motorway"}, {"name", ""}, {"ref", "М2"}, {"oneway", "yes"}}},
+        {"JICDMN",
+         {{"highway", "primary"},
+          {"name", "МКАД, 1-й километр"},
+          {"name:ru", "МКАД, 1-й километр"},
+          {"name:be", "1-ы кіламетр МКАД"},
+          {"ref", "M9"}}},
+        {"BC",
+         {{"highway", "motorway_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"junction:ref", "12"},
+          {"destination", "Гомель;Слуцк"},
+          {"destination:street", "1-ы кіламетр МКАД"},
+          {"destination:street:lang:ru", "МКАД, 1-й километр"},
+          {"destination:street:lang:be", "1-ы кіламетр МКАД"},
+          {"destination:ref", "M9"}}},
+        {"CE",
+         {{"highway", "motorway_link"}, {"name", ""}, {"oneway", "yes"}, {"destination:ref", "М2"}}},
+        {"HI",
+         {{"highway", "motorway_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"junction:ref", "12"},
+          {"destination:street:to", "Партизанский проспект"},
+          {"destination:street:to:lang:ru", "Партизанский проспект"},
+          {"destination:street:to:lang:be", "Партызанскі праспект"},
+          {"destination:ref:to", "M4"}}},
+        {"IK",
+         {{"highway", "motorway_link"}, {"name", ""}, {"oneway", "yes"}, {"destination:ref", "М2"}}},
+        {"OPMQ",
+         {{"highway", "secondary"},
+          {"name", "Днепровская улица"},
+          {"name:ru", "Днепровская улица"},
+          {"name:be", "Дняпроўская вуліца"}}},
+        {"DP",
+         {{"highway", "secondary_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"destination", "Гомель"},
+          {"destination:street", "Днепровская улица"},
+          {"destination:street:lang:ru", "Днепровская улица"},
+          {"destination:street:lang:be", "Дняпроўская вуліца"}}},
+    };
+
+    const gurka::nodes nodes = {{"M", {{"highway", "traffic_signals"}, {"name", "Zaventem"}}}};
+
+    const auto layout =
+        gurka::detail::map_to_coordinates(ascii_map, gridsize_metres, {27.56191, 53.90246});
+    // TODO: determine the final name for language_admin.sqlite
+    map = gurka::buildtiles(layout, ways, nodes, {},
+                            "test/data/gurka_route_with_streetname_and_sign_ru_be_MinskBelarus",
+                            {{"mjolnir.admin",
+                              {VALHALLA_SOURCE_DIR "test/data/language_admin.sqlite"}}});
+  }
+};
+
+gurka::map RouteWithStreetnameAndSign_ru_be_MinskBelarus::map = {};
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_ru_be_MinskBelarus, CheckStreetNamesAndSigns1) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"A", "D"}, "auto");
+  gurka::assert::raw::expect_path(result, {"М2", "", "МКАД, 1-й километр/1-ы кіламетр МКАД/M9"});
+
+  // Verify starting on М2
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 1);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "М2");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets_size(),
+            2);
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(0)
+                .text(),
+            "M9");
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(1)
+                .text(),
+            "1-ы кіламетр МКАД");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations_size(),
+            2);
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .text(),
+            "Гомель");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .text(),
+            "Слуцк");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  // Verify street name language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "МКАД, 1-й километр");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(0)
+                .language_tag(),
+            LanguageTag::kRu);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "1-ы кіламетр МКАД");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(1)
+                .language_tag(),
+            LanguageTag::kBe);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "M9");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(2)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_ru_be_MinskBelarus, CheckStreetNamesAndSigns2) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"G", "J"}, "auto");
+  gurka::assert::raw::expect_path(result, {"М2", "", "МКАД, 1-й километр/1-ы кіламетр МКАД/M9"});
+
+  // Verify starting on М2
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 1);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "М2");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations_size(),
+            2);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .text(),
+            "M4");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .text(),
+            "Партизанский проспект");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_ru_be_MinskBelarus, CheckGuideSigns) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"J", "O"}, "auto");
+  gurka::assert::raw::expect_path(result, {"МКАД, 1-й километр/1-ы кіламетр МКАД/M9",
+                                           "МКАД, 1-й километр/1-ы кіламетр МКАД/M9",
+                                           "МКАД, 1-й километр/1-ы кіламетр МКАД/M9", "",
+                                           "Днепровская улица/Дняпроўская вуліца"});
+
+  // Verify starting on МКАД, 1-й километр/1-ы кіламетр МКАД/M9
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "МКАД, 1-й километр");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "1-ы кіламетр МКАД");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "M9");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets_size(),
+            1);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets(0)
+                .text(),
+            "Днепровская улица");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations_size(),
+            1);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations(0)
+                .text(),
+            "Гомель");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_ru_be_MinskBelarus, CheckNonJunctionName) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"J", "Q"}, "auto");
+  gurka::assert::raw::expect_path(result, {"МКАД, 1-й километр/1-ы кіламетр МКАД/M9",
+                                           "МКАД, 1-й километр/1-ы кіламетр МКАД/M9",
+                                           "МКАД, 1-й километр/1-ы кіламетр МКАД/M9",
+                                           "МКАД, 1-й километр/1-ы кіламетр МКАД/M9",
+                                           "Днепровская улица/Дняпроўская вуліца"});
+
+  // Verify starting on МКАД, 1-й километр/1-ы кіламетр МКАД/M9
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "МКАД, 1-й километр");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "1-ы кіламетр МКАД");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "M9");
+
+  // Verify street name language tag is en
+  ++maneuver_index;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Днепровская улица");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(0)
+                .language_tag(),
+            LanguageTag::kRu);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "Дняпроўская вуліца");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(1)
+                .language_tag(),
+            LanguageTag::kBe);
+}
