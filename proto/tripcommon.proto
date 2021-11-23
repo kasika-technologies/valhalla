@@ -224,6 +224,7 @@ enum LanguageTag {
   kUz = 69;
   kVi = 70;
   kZh = 71;
+  kCy = 72;
 }
 
 message StreetName {

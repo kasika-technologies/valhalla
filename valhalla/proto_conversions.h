@@ -218,6 +218,7 @@ inline LanguageTag GetTripLanguageTag(valhalla::baldr::Language l) {
        {valhalla::baldr::Language::kUz, LanguageTag::kUz},
        {valhalla::baldr::Language::kVi, LanguageTag::kVi},
        {valhalla::baldr::Language::kZh, LanguageTag::kZh},
+       {valhalla::baldr::Language::kCy, LanguageTag::kCy},
        {valhalla::baldr::Language::kNone, LanguageTag::kUnspecified}};
 
   auto i = language_tag_map.find(l);

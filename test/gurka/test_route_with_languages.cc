@@ -1178,3 +1178,409 @@ TEST_F(RouteWithStreetnameAndSign_ru_be_MinskBelarus, CheckNonJunctionName) {
                 .language_tag(),
             LanguageTag::kBe);
 }
+
+class RouteWithStreetnameAndSign_cy_en_Wales : public ::testing::Test {
+protected:
+  static gurka::map map;
+
+  static void SetUpTestSuite() {
+    constexpr double gridsize_metres = 100;
+
+    const std::string ascii_map = R"(
+                       J
+                       |
+                       |
+                       |
+                       I
+                      /|\
+                    /  |  \
+                  /    |    \
+           L----K-------------H----G
+           A----B-------------E----F
+                  \    |    /
+                    \  |  /
+                      \|/
+                       C
+                       |
+                       |
+                       |
+                       D
+               O------PM------Q
+                       |
+                       |
+                       |
+                       N
+
+    )";
+
+    const gurka::ways ways = {
+        {"ABEF",
+         {{"highway", "motorway"},
+          {"name", "Gwibffordd Gogledd Cymru / North Wales Expressway"},
+          {"name:en", "North Wales Expressway"},
+          {"name:cy", "Gwibffordd Gogledd Cymru"},
+          {"ref", "A55"},
+          {"oneway", "yes"}}},
+        {"GHKL",
+         {{"highway", "motorway"},
+          {"name", "Gwibffordd Gogledd Cymru / North Wales Expressway"},
+          {"name:en", "North Wales Expressway"},
+          {"name:cy", "Gwibffordd Gogledd Cymru"},
+          {"ref", "A55"},
+          {"oneway", "yes"}}},
+        {"JICDMN",
+         {{"highway", "primary"},
+          {"name", "Caernarfon Road"},
+          {"name:cy", "Ffordd Caernarfon"},
+          {"ref", "A4087"}}},
+        {"BC",
+         {{"highway", "motorway_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"junction:ref", "26B"},
+          {"destination", "Newport;"},
+          {"destination:lang:cy", "Casnewydd"},
+          {"destination:street", "Caernarfon Road"},
+          {"destination:street:lang:cy", "Ffordd Caernarfon"},
+          {"destination:ref", "A4087"}}},
+        {"CE",
+         {{"highway", "motorway_link"}, {"name", ""}, {"oneway", "yes"}, {"destination:ref", "A55"}}},
+        {"HI",
+         {{"highway", "motorway_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"junction:ref", "26B"},
+          {"destination:street:to", "Ainon Road"},
+          {"destination:street:to:lang:cy", "Ffordd Ainion"},
+          {"destination:ref:to", "M4"}}},
+        {"IK",
+         {{"highway", "motorway_link"}, {"name", ""}, {"oneway", "yes"}, {"destination:ref", "A55"}}},
+        {"OPMQ",
+         {{"highway", "secondary"},
+          {"name:en", "Penchwintan Road"},
+          {"name:cy", "Ffordd Penchwintan"}}},
+        {"DP",
+         {{"highway", "secondary_link"},
+          {"name", ""},
+          {"oneway", "yes"},
+          {"destination", "Newport"},
+          {"destination:street", "Penchwintan Road"},
+          {"destination:street:lang:cy", "Ffordd Penchwintan"}}},
+    };
+
+    const gurka::nodes nodes = {{"M", {{"highway", "traffic_signals"}, {"name", "M Junction"}}}};
+
+    const auto layout =
+        gurka::detail::map_to_coordinates(ascii_map, gridsize_metres, {-3.73895, 52.29282});
+    // TODO: determine the final name for language_admin.sqlite
+    map = gurka::buildtiles(layout, ways, nodes, {},
+                            "test/data/gurka_route_with_streetname_and_sign_cy_en_Wales",
+                            {{"mjolnir.admin",
+                              {VALHALLA_SOURCE_DIR "test/data/language_admin.sqlite"}}});
+  }
+};
+
+gurka::map RouteWithStreetnameAndSign_cy_en_Wales::map = {};
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_cy_en_Wales, CheckStreetNamesAndSigns1) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"A", "D"}, "auto");
+  // TODO - put back in when data processing is fixed
+  //  gurka::assert::raw::expect_path(result, {"A55/Gwibffordd Gogledd Cymru/North Wales Expressway",
+  //  "",
+  //                                           "Caernarfon Road/Ffordd Caernarfon/A4087"});
+  gurka::assert::raw::expect_path(result, {"A55/Gwibffordd Gogledd Cymru/North Wales Expressway", "",
+                                           "Ffordd Caernarfon/A4087"});
+
+  // Verify starting on A55
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "A55");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "Gwibffordd Gogledd Cymru");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "North Wales Expressway");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets_size(),
+            2);
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(0)
+                .text(),
+            "A4087");
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(1)
+                .text(),
+            "Caernarfon Road");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_onto_streets(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations_size(),
+            1);
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .text(),
+            "Newport");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  // Verify street name language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
+  // TODO - put back in when data processing is fixed
+  //  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+  //            "Caernarfon Road");
+  //  EXPECT_EQ(result.directions()
+  //                .routes(0)
+  //                .legs(0)
+  //                .maneuver(maneuver_index)
+  //                .street_name(0)
+  //                .language_tag(),
+  //            LanguageTag::kEn);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Ffordd Caernarfon");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(0)
+                .language_tag(),
+            LanguageTag::kCy);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "A4087");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_cy_en_Wales, CheckStreetNamesAndSigns2) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"G", "J"}, "auto");
+  // TODO - put back in when data processing is fixed
+  //  gurka::assert::raw::expect_path(result, {"A55/Gwibffordd Gogledd Cymru/North Wales Expressway",
+  //  "",
+  //                                           "Caernarfon Road/Ffordd Caernarfon/A4087"});
+  gurka::assert::raw::expect_path(result, {"A55/Gwibffordd Gogledd Cymru/North Wales Expressway", "",
+                                           "Ffordd Caernarfon/A4087"});
+
+  // Verify starting on A55
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "A55");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "Gwibffordd Gogledd Cymru");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "North Wales Expressway");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations_size(),
+            2);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .text(),
+            "M4");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .text(),
+            "Ainon Road");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .exit_toward_locations(1)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_cy_en_Wales, CheckGuideSigns) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"J", "O"}, "auto");
+  // TODO - put back in when data processing is fixed
+  //  gurka::assert::raw::expect_path(result, {"Ffordd Caernarfon/Caernarfon Road/A4087",
+  //                                           "Ffordd Caernarfon/Caernarfon Road/A4087",
+  //                                           "Ffordd Caernarfon/Caernarfon Road/A4087", "",
+  //                                           "Ffordd Penchwintan/Penchwintan Road"});
+  gurka::assert::raw::expect_path(result, {"Ffordd Caernarfon/A4087", "Ffordd Caernarfon/A4087",
+                                           "Ffordd Caernarfon/A4087", "",
+                                           "Ffordd Penchwintan/Penchwintan Road"});
+
+  // Verify starting on Caernarfon Road/A4087
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Ffordd Caernarfon");
+  // TODO - put back in when data processing is fixed
+  //  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+  //            "Caernarfon Road");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "A4087");
+
+  // Verify sign language tag is en
+  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
+  ++maneuver_index;
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets_size(),
+            1);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets(0)
+                .text(),
+            "Penchwintan Road");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_onto_streets(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations_size(),
+            1);
+
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations(0)
+                .text(),
+            "Newport");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .sign()
+                .guide_toward_locations(0)
+                .language_tag(),
+            LanguageTag::kUnspecified);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+TEST_F(RouteWithStreetnameAndSign_cy_en_Wales, CheckNonJunctionName) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"J", "Q"}, "auto");
+  // TODO - put back in when data processing is fixed
+  //  gurka::assert::raw::expect_path(result, {"Ffordd Caernarfon/Caernarfon Road/A4087",
+  //                                           "Ffordd Caernarfon/Caernarfon Road/A4087",
+  //                                           "Ffordd Caernarfon/Caernarfon Road/A4087", "",
+  //                                           "Ffordd Penchwintan/Penchwintan Road"});
+  gurka::assert::raw::expect_path(result, {"Ffordd Caernarfon/A4087", "Ffordd Caernarfon/A4087",
+                                           "Ffordd Caernarfon/A4087", "Ffordd Caernarfon/A4087",
+                                           "Ffordd Penchwintan/Penchwintan Road"});
+
+  // Verify starting on Caernarfon Road/A4087
+  int maneuver_index = 0;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Ffordd Caernarfon");
+  // TODO - put back in when data processing is fixed
+  //  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+  //            "Caernarfon Road");
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "A4087");
+
+  // Verify street name language tag is en
+  ++maneuver_index;
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
+            "Ffordd Penchwintan");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(0)
+                .language_tag(),
+            LanguageTag::kCy);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
+            "Penchwintan Road");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(1)
+                .language_tag(),
+            LanguageTag::kEn);
+}
