@@ -310,11 +310,7 @@ inline void build_pbf(const nodelayout& node_locations,
     auto way_id = osm_id++;
     auto found = way.second.find("osm_id");
     if (found != way.second.cend()) {
-      uint64_t id = std::stoull(found->second);
-      if (id < osm_id) {
-        throw std::invalid_argument("Osm way id has already been used");
-      }
-      way_id = id;
+      way_id = std::stoull(found->second);
     }
 
     way_osm_id_map[way.first] = way_id;
@@ -414,16 +410,20 @@ to_string(const ::google::protobuf::RepeatedPtrField<::valhalla::StreetName>& st
   return str;
 }
 
-std::vector<std::string> get_path(const valhalla::Api& result) {
-  std::vector<std::string> actual_names;
-  for (const auto& leg : result.trip().routes(0).legs()) {
-    for (const auto& node : leg.node()) {
-      if (node.has_edge()) {
-        actual_names.push_back(detail::to_string(node.edge().name()));
+std::vector<std::vector<std::string>> get_paths(const valhalla::Api& result) {
+  std::vector<std::vector<std::string>> paths;
+  for (const auto& route : result.trip().routes()) {
+    std::vector<std::string> path;
+    for (const auto& leg : route.legs()) {
+      for (const auto& node : leg.node()) {
+        if (node.has_edge()) {
+          path.push_back(detail::to_string(node.edge().name()));
+        }
       }
     }
+    paths.push_back(std::move(path));
   }
-  return actual_names;
+  return paths;
 }
 
 } // namespace detail
@@ -513,7 +513,7 @@ findEdge(valhalla::baldr::GraphReader& reader,
       const auto threshold = 0.00001; // Degrees.  About 1m at the equator
       if (std::abs(de_endnode_coordinates.lng() - end_node_coordinates.lng()) < threshold &&
           std::abs(de_endnode_coordinates.lat() - end_node_coordinates.lat()) < threshold) {
-        auto names = tile->GetNames(forward_directed_edge->edgeinfo_offset());
+        auto names = tile->GetNames(forward_directed_edge);
         for (const auto& name : names) {
           if (name == way_name) {
             auto forward_edge_id = tile_id;
@@ -599,6 +599,14 @@ valhalla::Api do_action(const valhalla::Options::Action& action,
     case valhalla::Options::centroid:
       json_str = actor.centroid(request_json, nullptr, &api);
       break;
+    case valhalla::Options::expansion:
+      json_str = actor.expansion(request_json, nullptr, &api);
+      std::cout << json_str << std::endl;
+      break;
+    case valhalla::Options::isochrone:
+      json_str = actor.isochrone(request_json, nullptr, &api);
+      std::cout << json_str << std::endl;
+      break;
     default:
       throw std::logic_error("Unsupported action");
       break;
@@ -670,7 +678,7 @@ std::string dump_geojson_graph(const map& graph) {
     for (const auto& edge : tile->GetDirectedEdges()) {
       valhalla::baldr::GraphId edge_id(tile_id.tileid(), tile_id.level(),
                                        &edge - tile->directededge(0));
-      auto info = tile->edgeinfo(edge.edgeinfo_offset());
+      auto info = tile->edgeinfo(&edge);
 
       // add some properties
       rapidjson::Value properties(rapidjson::kObjectType);
@@ -685,6 +693,7 @@ std::string dump_geojson_graph(const map& graph) {
       properties.AddMember(decltype(doc)::StringRefType(edge.forward() ? "opp_edge_id" : "edge_id"),
                            std::to_string(reader.GetOpposingEdgeId(edge_id)), doc.GetAllocator());
       properties.AddMember("names", names, doc.GetAllocator());
+      properties.AddMember("is_shortcut", edge.is_shortcut() ? true : false, doc.GetAllocator());
 
       // add the geom
       rapidjson::Value geometry(rapidjson::kObjectType);
@@ -793,6 +802,49 @@ void expect_steps(valhalla::Api& raw_result,
   }
 
   EXPECT_EQ(actual_names, expected_names) << "Actual steps didn't match expected steps";
+}
+/**
+ * Tests if the result, which may be comprised of multiple routes,
+ * have summaries that match the expected_summaries.
+ *
+ * Note: For simplicity's sake, this logic looks at the first leg of each route.
+ *
+ * @param result the result of a /route or /match request
+ * @param expected_summaries the route/leg summaries expected
+ */
+void expect_summaries(valhalla::Api& raw_result, const std::vector<std::string>& expected_summaries) {
+
+  rapidjson::Document result = convert_to_json(raw_result, valhalla::Options_Format_osrm);
+  if (result.HasParseError()) {
+    FAIL() << "Error converting route response to JSON";
+  }
+
+  const std::string& route_name = "routes";
+
+  EXPECT_TRUE(result.HasMember(route_name));
+  EXPECT_TRUE(result[route_name].IsArray());
+  EXPECT_EQ(result[route_name].Size(), expected_summaries.size());
+
+  size_t i = 0;
+  for (auto route_iter = result[route_name].Begin(); route_iter != result[route_name].End();
+       ++route_iter, ++i) {
+
+    EXPECT_TRUE(route_iter->HasMember("legs"));
+    EXPECT_TRUE(route_iter->FindMember("legs")->value.IsArray());
+    EXPECT_TRUE(route_iter->FindMember("legs")->value.Size() > 0);
+
+    // here's where we only grab the first leg
+    auto leg_iter = route_iter->FindMember("legs")->value.Begin();
+
+    EXPECT_TRUE(leg_iter->IsObject());
+    EXPECT_TRUE(leg_iter->HasMember("summary"));
+    EXPECT_TRUE(leg_iter->FindMember("summary")->value.IsString());
+
+    std::string actual_summary = leg_iter->FindMember("summary")->value.GetString();
+
+    EXPECT_EQ(actual_summary, expected_summaries[i])
+        << "Actual summary didn't match expected summary";
+  }
 }
 /**
  * Tests if a found path traverses the expected roads in the expected order
@@ -904,6 +956,8 @@ void expect_maneuver_begin_path_indexes(const valhalla::Api& result,
  * @param result the result of a /route or /match request
  * @param maneuver_index the specified maneuver index to inspect
  * @param expected_text_instruction the expected text instruction
+ * @param expected_verbal_succinct_transition_instruction the expected verbal succinct transition
+ *                                                     instruction
  * @param expected_verbal_transition_alert_instruction the expected verbal transition alert
  *                                                     instruction
  * @param expected_verbal_pre_transition_instruction the expected verbal pre-transition instruction
@@ -913,6 +967,7 @@ void expect_instructions_at_maneuver_index(
     const valhalla::Api& result,
     int maneuver_index,
     const std::string& expected_text_instruction,
+    const std::string& expected_verbal_succinct_transition_instruction,
     const std::string& expected_verbal_transition_alert_instruction,
     const std::string& expected_verbal_pre_transition_instruction,
     const std::string& expected_verbal_post_transition_instruction) {
@@ -924,6 +979,8 @@ void expect_instructions_at_maneuver_index(
   const auto& maneuver = result.directions().routes(0).legs(0).maneuver(maneuver_index);
 
   EXPECT_EQ(maneuver.text_instruction(), expected_text_instruction);
+  EXPECT_EQ(maneuver.verbal_succinct_transition_instruction(),
+            expected_verbal_succinct_transition_instruction);
   EXPECT_EQ(maneuver.verbal_transition_alert_instruction(),
             expected_verbal_transition_alert_instruction);
   EXPECT_EQ(maneuver.verbal_pre_transition_instruction(), expected_verbal_pre_transition_instruction);
@@ -998,11 +1055,14 @@ void expect_eta(const valhalla::Api& result,
  *
  * @param result the result of a /route or /match request
  * @param expected_names the names of the edges the path should traverse in order
+ * @param message the message prints if a test is failed
  */
-void expect_path(const valhalla::Api& result, const std::vector<std::string>& expected_names) {
+void expect_path(const valhalla::Api& result,
+                 const std::vector<std::string>& expected_names,
+                 const std::string& message) {
   EXPECT_EQ(result.trip().routes_size(), 1);
-  const auto actual_names = detail::get_path(result);
-  EXPECT_EQ(actual_names, expected_names) << "Actual path didn't match expected path";
+  const auto actual_names = detail::get_paths(result).front();
+  EXPECT_EQ(actual_names, expected_names) << "Actual path didn't match expected path. " << message;
 }
 
 } // namespace raw

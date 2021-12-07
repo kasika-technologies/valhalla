@@ -113,6 +113,7 @@ bool Options_Action_Enum_Parse(const std::string& action, Options::Action* a) {
       {"transit_available", Options::transit_available},
       {"expansion", Options::expansion},
       {"centroid", Options::centroid},
+      {"status", Options::status},
   };
   auto i = actions.find(action);
   if (i == actions.cend())
@@ -135,6 +136,7 @@ const std::string& Options_Action_Enum_Name(const Options::Action action) {
       {Options::transit_available, "transit_available"},
       {Options::expansion, "expansion"},
       {Options::centroid, "centroid"},
+      {Options::status, "status"},
   };
   auto i = actions.find(action);
   return i == actions.cend() ? empty : i->second;
@@ -182,7 +184,6 @@ bool Costing_Enum_Parse(const std::string& costing, Costing* c) {
       // auto_shorter is deprecated
       {"bicycle", Costing::bicycle},
       {"bus", Costing::bus},
-      {"hov", Costing::hov},
       {"taxi", Costing::taxi},
       {"motor_scooter", Costing::motor_scooter},
       {"multimodal", Costing::multimodal},
@@ -209,7 +210,6 @@ const std::string& Costing_Enum_Name(const Costing costing) {
       // auto_shorter is deprecated
       {Costing::bicycle, "bicycle"},
       {Costing::bus, "bus"},
-      {Costing::hov, "hov"},
       {Costing::taxi, "taxi"},
       {Costing::motor_scooter, "motor_scooter"},
       {Costing::multimodal, "multimodal"},

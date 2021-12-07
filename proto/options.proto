@@ -37,7 +37,7 @@ enum Costing {
   // deprecated auto_shorter = 1;
   bicycle = 2;
   bus = 3;
-  hov = 4;
+  // deprecated hov = 4;
   motor_scooter = 5;
   multimodal = 6;
   pedestrian = 7;
@@ -124,12 +124,21 @@ message CostingOptions {
   optional float use_tracks = 66;
   optional float use_distance = 67;
   optional float use_living_streets = 68;
+  optional float service_factor = 69;
+  optional float closure_factor = 70;
+  optional float private_access_penalty = 71;
+  optional bool exclude_unpaved = 72;
+  optional bool include_hot = 73;
+  optional bool include_hov2 = 74;
+  optional bool include_hov3 = 75;
+  optional bool exclude_cash_only_tolls = 76;
+  optional uint32 restriction_probability = 77;
 
   // these are not specified directly by the user but they get filled in as the request is parsed and fulfilled
   optional Costing costing = 90;
   optional string name = 91;
-  repeated AvoidEdge avoid_edges = 92;                       // Avoid edges for any costing - derived from avoid_locations
-  optional bool filter_closures = 93;
+  repeated AvoidEdge exclude_edges = 92;  // Exclude edges for any costing - derived from exclude_locations
+  optional bool filter_closures = 93;     // Will default to true
 }
 
 message Options {
@@ -157,6 +166,7 @@ message Options {
     transit_available = 9;
     expansion = 10;
     centroid = 11;
+    status = 12;
   }
 
   enum DateTimeType {
@@ -164,6 +174,10 @@ message Options {
     depart_at = 1;
     arrive_by = 2;
     invariant = 3;
+  }
+
+  message Ring {
+    repeated LatLng coords = 1;
   }
 
   optional Units units = 1;                                               // kilometers or miles
@@ -174,13 +188,13 @@ message Options {
   optional string jsonp = 6;                                              // Optional javascript callback for the request
   optional string encoded_polyline = 7;                                   // Optional polyline 6 encoded shape used in /height /trace_*
   optional Action action = 8;                                             // Action signifying the request type
-  //deprecated
+  //deprecated = 9;
   optional bool range = 10;                                               // Used in /height if the range between points should be serialized
   optional bool verbose = 11;                                             // Used in /locate request to give back extensive information
   optional Costing costing = 12;                                          // Used to tell what type of costing to use
   repeated CostingOptions costing_options = 13;                           // A list of costing options for each costing model
   repeated Location locations = 14;                                       // Locations for /route /optimized /locate /isochrone
-  repeated Location avoid_locations = 15;                                 // Avoids for any costing
+  repeated Location exclude_locations = 15;                               // Avoids for any costing
   repeated Location sources = 16;                                         // Sources for /sources_to_targets
   repeated Location targets = 17;                                         // Targets for /sources_to_targets
   optional DateTimeType date_time_type = 18;                              // Are you leaving now or then or arriving then
@@ -212,4 +226,6 @@ message Options {
   optional bool roundabout_exits = 44;                                    // Whether to announce roundabout exit maneuvers
   optional bool linear_references = 45;                                   // Include linear references for graph edges returned in certain responses.
   repeated CostingOptions recostings = 46;                                // Costing options to use to recost a path after it has been found
+  repeated Ring exclude_polygons = 47;                                    // Rings/polygons to exclude entire areas during path finding
+  optional bool prioritize_bidirectional = 48;                            // Prioritize bidirectional a* when depart_at date_time.type is specified
 }

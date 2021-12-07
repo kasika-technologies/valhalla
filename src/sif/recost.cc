@@ -96,9 +96,10 @@ void recost_forward(baldr::GraphReader& reader,
     const uint64_t localtime = offset_time.valid ? offset_time.local_time : 0;
     // we should call 'Allowed' method even if 'ignore_access' flag is true in order to
     // evaluate time restrictions
+    const auto next_id = edge_cb();
     if (predecessor != baldr::kInvalidLabel &&
-        (!costing.Allowed(edge, label, tile, edge_id, localtime, offset_time.timezone_index,
-                          time_restrictions_TODO) &&
+        (!costing.Allowed(edge, !next_id.Is_Valid(), label, tile, edge_id, localtime,
+                          offset_time.timezone_index, time_restrictions_TODO) &&
          !ignore_access)) {
       throw std::runtime_error("This path requires different edge access than this costing allows");
     }
@@ -110,7 +111,6 @@ void recost_forward(baldr::GraphReader& reader,
       source_pct = -1;
     }
 
-    const auto next_id = edge_cb();
     if (!next_id.Is_Valid()) {
       edge_pct -= 1.f - target_pct;
       // just to keep compatibility with the logic that handled trivial path in bidiastar
@@ -120,12 +120,17 @@ void recost_forward(baldr::GraphReader& reader,
     // the cost for traversing this intersection
     Cost transition_cost = node ? costing.TransitionCost(edge, node, label) : Cost{};
     // update the cost to the end of this edge
-    cost += transition_cost + costing.EdgeCost(edge, tile, offset_time.second_of_week) * edge_pct;
+    uint8_t flow_sources;
+    cost += transition_cost + costing.EdgeCost(edge, tile, offset_time, flow_sources) * edge_pct;
     // update the length to the end of this edge
     length += edge->length() * edge_pct;
     // construct the label
+
+    InternalTurn turn =
+        node ? costing.TurnType(label.opp_local_idx(), node, edge) : InternalTurn::kNoTurn;
     label = EdgeLabel(predecessor++, edge_id, edge, cost, cost.cost, 0, costing.travel_mode(), length,
-                      transition_cost, time_restrictions_TODO);
+                      transition_cost, time_restrictions_TODO, !ignore_access,
+                      static_cast<bool>(flow_sources & baldr::kDefaultFlowMask), turn);
     // hand back the label
     label_cb(label);
     // next edge

@@ -8,25 +8,21 @@
 
 #include <valhalla/odin/enhancedtrippath.h>
 #include <valhalla/odin/maneuver.h>
+#include <valhalla/odin/markup_formatter.h>
 #include <valhalla/odin/narrative_dictionary.h>
+#include <valhalla/odin/util.h>
 #include <valhalla/proto/options.pb.h>
 #include <valhalla/proto/trip.pb.h>
 
 namespace valhalla {
 namespace odin {
 
-const bool kLimitByConseuctiveCount = true;
-constexpr uint32_t kElementMaxCount = 4;
-constexpr uint32_t kVerbalAlertElementMaxCount = 1;
-constexpr uint32_t kVerbalPreElementMaxCount = 2;
-constexpr uint32_t kVerbalPostElementMaxCount = 2;
-const std::string kVerbalDelim = ", ";
-
 class NarrativeBuilder {
 public:
   NarrativeBuilder(const Options& options,
                    const EnhancedTripLeg* trip_path,
-                   const NarrativeDictionary& dictionary);
+                   const NarrativeDictionary& dictionary,
+                   const MarkupFormatter& markup_formatter);
 
   virtual ~NarrativeBuilder() = default;
 
@@ -66,6 +62,13 @@ public:
                                 bool limit_by_consecutive_count = kLimitByConseuctiveCount,
                                 uint32_t element_max_count = kVerbalPreElementMaxCount,
                                 const std::string& delim = kVerbalDelim);
+
+  /////////////////////////////////////////////////////////////////////////////
+  std::string FormVerbalSuccinctStartTransitionInstruction(Maneuver& maneuver);
+
+  const NarrativeDictionary& dictionary() const {
+    return dictionary_;
+  }
 
 protected:
   /////////////////////////////////////////////////////////////////////////////
@@ -361,6 +364,53 @@ protected:
   std::string FormVerbalPostTransitionTransitInstruction(Maneuver& maneuver);
 
   /////////////////////////////////////////////////////////////////////////////
+  std::string FormVerbalSuccinctDestinationTransitionInstruction(Maneuver& maneuver);
+
+  std::string FormVerbalSuccinctContinueTransitionInstruction(Maneuver& maneuver);
+
+  std::string FormVerbalSuccinctTurnTransitionInstruction(
+      Maneuver& maneuver,
+      bool limit_by_consecutive_count = kLimitByConseuctiveCount,
+      uint32_t element_max_count = kVerbalPreElementMaxCount,
+      const std::string& delim = kVerbalDelim);
+
+  std::string FormVerbalSuccinctUturnTransitionInstruction(
+      Maneuver& maneuver,
+      bool limit_by_consecutive_count = kLimitByConseuctiveCount,
+      uint32_t element_max_count = kVerbalPreElementMaxCount,
+      const std::string& delim = kVerbalDelim);
+
+  std::string FormVerbalSuccinctKeepTransitionInstruction(
+      Maneuver& maneuver,
+      bool limit_by_consecutive_count = kLimitByConseuctiveCount,
+      uint32_t element_max_count = kVerbalPreElementMaxCount,
+      const std::string& delim = kVerbalDelim);
+
+  std::string FormVerbalSuccinctMergeTransitionInstruction(
+      Maneuver& maneuver,
+      bool limit_by_consecutive_count = kLimitByConseuctiveCount,
+      uint32_t element_max_count = kVerbalPreElementMaxCount,
+      const std::string& delim = kVerbalDelim);
+
+  std::string FormVerbalSuccinctEnterRoundaboutTransitionInstruction(
+      Maneuver& maneuver,
+      bool limit_by_consecutive_count = kLimitByConseuctiveCount,
+      uint32_t element_max_count = kVerbalPreElementMaxCount,
+      const std::string& delim = kVerbalDelim);
+
+  std::string FormVerbalSuccinctExitRoundaboutTransitionInstruction(
+      Maneuver& maneuver,
+      bool limit_by_consecutive_count = kLimitByConseuctiveCount,
+      uint32_t element_max_count = kVerbalPreElementMaxCount,
+      const std::string& delim = kVerbalDelim);
+
+  std::string FormVerbalSuccinctEnterFerryTransitionInstruction(
+      Maneuver& maneuver,
+      bool limit_by_consecutive_count = kLimitByConseuctiveCount,
+      uint32_t element_max_count = kVerbalPreElementMaxCount,
+      const std::string& delim = kVerbalDelim);
+
+  /////////////////////////////////////////////////////////////////////////////
   /**
    * Returns the transit stop count label based on the value of the specified
    * stop count and language rules.
@@ -530,10 +580,26 @@ protected:
    *                 cue in the returned instruction.
    * @param next_maneuver The next maneuver that will be the second verbal cue
    *                      in the returned instruction.
+   * @param process_succinct Flag to determine if we are processing the succinct instruction.
+   *                         Defaulted to false.
    *
    * @return the verbal multi-cue instruction based on the specified maneuvers.
    */
-  std::string FormVerbalMultiCue(Maneuver* maneuver, Maneuver& next_maneuver);
+  std::string
+  FormVerbalMultiCue(Maneuver& maneuver, Maneuver& next_maneuver, bool process_succinct = false);
+
+  /**
+   * Returns the verbal multi-cue instruction based on the specified maneuver and strings.
+   *
+   * @param maneuver The current quick maneuver.
+   * @param first_verbal_cue The first verbal cue in the returned instruction.
+   * @param second_verbal_cue The second verbal cue in the returned instruction.
+   *
+   * @return the verbal multi-cue instruction based on the specified maneuver and strings.
+   */
+  std::string FormVerbalMultiCue(Maneuver& maneuver,
+                                 const std::string& first_verbal_cue,
+                                 const std::string& second_verbal_cue);
 
   /**
    * Returns true if a verbal multi-cue instruction should be formed for the
@@ -580,6 +646,7 @@ protected:
   const Options& options_;
   const EnhancedTripLeg* trip_path_;
   const NarrativeDictionary& dictionary_;
+  MarkupFormatter markup_formatter_; // No ref - need our own non-const copy
   bool articulated_preposition_enabled_;
 };
 
@@ -589,8 +656,9 @@ class NarrativeBuilder_csCZ : public NarrativeBuilder {
 public:
   NarrativeBuilder_csCZ(const Options& options,
                         const EnhancedTripLeg* trip_path,
-                        const NarrativeDictionary& dictionary)
-      : NarrativeBuilder(options, trip_path, dictionary) {
+                        const NarrativeDictionary& dictionary,
+                        const MarkupFormatter& markup_formatter)
+      : NarrativeBuilder(options, trip_path, dictionary, markup_formatter) {
   }
 
 protected:
@@ -612,8 +680,9 @@ class NarrativeBuilder_hiIN : public NarrativeBuilder {
 public:
   NarrativeBuilder_hiIN(const Options& options,
                         const EnhancedTripLeg* trip_path,
-                        const NarrativeDictionary& dictionary)
-      : NarrativeBuilder(options, trip_path, dictionary) {
+                        const NarrativeDictionary& dictionary,
+                        const MarkupFormatter& markup_formatter)
+      : NarrativeBuilder(options, trip_path, dictionary, markup_formatter) {
   }
 
 protected:
@@ -635,8 +704,9 @@ class NarrativeBuilder_itIT : public NarrativeBuilder {
 public:
   NarrativeBuilder_itIT(const Options& options,
                         const EnhancedTripLeg* trip_path,
-                        const NarrativeDictionary& dictionary)
-      : NarrativeBuilder(options, trip_path, dictionary) {
+                        const NarrativeDictionary& dictionary,
+                        const MarkupFormatter& markup_formatter)
+      : NarrativeBuilder(options, trip_path, dictionary, markup_formatter) {
     // Enable articulated prepositions for Itailian
     articulated_preposition_enabled_ = true;
   }
@@ -657,8 +727,9 @@ class NarrativeBuilder_ruRU : public NarrativeBuilder {
 public:
   NarrativeBuilder_ruRU(const Options& options,
                         const EnhancedTripLeg* trip_path,
-                        const NarrativeDictionary& dictionary)
-      : NarrativeBuilder(options, trip_path, dictionary) {
+                        const NarrativeDictionary& dictionary,
+                        const MarkupFormatter& markup_formatter)
+      : NarrativeBuilder(options, trip_path, dictionary, markup_formatter) {
   }
 
 protected:

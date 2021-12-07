@@ -13,7 +13,9 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#ifndef _MSC_VER
 #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
 
 #include <gmock/gmock.h>
@@ -21,6 +23,7 @@
 
 #include <boost/algorithm/string.hpp>
 
+#include "filesystem.h"
 #include "microtar.h"
 
 namespace {
@@ -60,7 +63,11 @@ struct MMap {
   MMap(const char* filename) {
     fd = open(filename, O_RDWR);
     struct stat s;
+#ifdef _MSC_VER
+    _fstat64(fd, &s);
+#else
     fstat(fd, &s);
+#endif
     data = mmap(0, s.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     length = s.st_size;
   }
@@ -137,7 +144,8 @@ boost::property_tree::ptree make_config(const std::string& path_prefix,
           "trace_attributes",
           "transit_available",
           "expansion",
-          "centroid"
+          "centroid",
+          "status"
         ],
         "logging": {
           "color": false,
@@ -242,7 +250,7 @@ boost::property_tree::ptree make_config(const std::string& path_prefix,
         "reclassify_links": true,
         "shortcuts": true,
         "tile_dir": "%%",
-        "tile_extract": "%%/tiles.tar",
+        "tile_extract": "",
         "timezone": "%%/tz_world.sqlite",
         "traffic_extract": "%%/traffic.tar",
         "transit_dir": "%%/transit",
@@ -259,12 +267,6 @@ boost::property_tree::ptree make_config(const std::string& path_prefix,
       },
       "service_limits": {
         "auto": {
-          "max_distance": 5000000.0,
-          "max_locations": 20,
-          "max_matrix_distance": 400000.0,
-          "max_matrix_locations": 50
-        },
-        "auto_shorter": {
           "max_distance": 5000000.0,
           "max_locations": 20,
           "max_matrix_distance": 400000.0,
@@ -292,12 +294,6 @@ boost::property_tree::ptree make_config(const std::string& path_prefix,
           "max_distance": 200000.0,
           "max_locations": 5
         },
-        "hov": {
-          "max_distance": 5000000.0,
-          "max_locations": 20,
-          "max_matrix_distance": 400000.0,
-          "max_matrix_locations": 50
-        },
         "isochrone": {
           "max_contours": 4,
           "max_distance": 25000.0,
@@ -306,7 +302,8 @@ boost::property_tree::ptree make_config(const std::string& path_prefix,
           "max_distance_contour": 200
         },
         "max_alternates": 2,
-        "max_avoid_locations": 50,
+        "max_exclude_locations": 50,
+        "max_exclude_polygons_length": 10000,
         "max_radius": 200,
         "max_reachability": 100,
         "max_timedep_distance": 500000,
@@ -339,6 +336,9 @@ boost::property_tree::ptree make_config(const std::string& path_prefix,
         "skadi": {
           "max_shape": 750000,
           "min_resample": 10.0
+        },
+        "status": {
+          "allow_verbose": true
         },
         "taxi": {
           "max_distance": 5000000.0,
@@ -438,6 +438,13 @@ void build_live_traffic_data(const boost::property_tree::ptree& config,
   std::string tile_dir = config.get<std::string>("mjolnir.tile_dir");
   std::string traffic_extract = config.get<std::string>("mjolnir.traffic_extract");
 
+  filesystem::path parent_dir = filesystem::path(traffic_extract).parent_path();
+  if (!filesystem::exists(parent_dir)) {
+    std::stringstream ss;
+    ss << "Traffic extract directory " << parent_dir.string() << " does not exist";
+    throw std::runtime_error(ss.str());
+  }
+
   // Begin by seeding the traffic file,
   // per-edge customizations come in the step after
   {
@@ -453,7 +460,7 @@ void build_live_traffic_data(const boost::property_tree::ptree& config,
     // Traffic data works like this:
     //   1. There is a separate .tar file containing tile entries matching the main tiles
     //   2. Each tile is a fixed-size, with a header, and entries
-    // This loop iterates ofer the routing tiles, and creates blank
+    // This loop iterates over the routing tiles, and creates blank
     // traffic tiles with empty records.
     // Valhalla mmap()'s this file and reads from it during route calculation.
     // This loop below creates initial .tar file entries .  Lower down, we make changes to
@@ -545,6 +552,7 @@ void customize_live_traffic_data(const boost::property_tree::ptree& config,
   }
 }
 
+#ifdef DATA_TOOLS
 void customize_historical_traffic(const boost::property_tree::ptree& config,
                                   const HistoricalTrafficCustomize& cb) {
   // loop over all tiles in the tileset
@@ -561,7 +569,7 @@ void customize_historical_traffic(const boost::property_tree::ptree& config,
         auto coefs = valhalla::baldr::compress_speed_buckets(historical->data());
         tile.AddPredictedSpeed(edges.size() - 1, coefs, tile.header()->directededgecount());
       }
-      edges.back().set_has_predicted_speed(historical.has_value());
+      edges.back().set_has_predicted_speed(static_cast<bool>(historical));
     }
     tile.UpdatePredictedSpeeds(edges);
   }
@@ -589,5 +597,6 @@ void customize_edges(const boost::property_tree::ptree& config, const EdgesCusto
     tile.Update(nodes, edges);
   }
 }
+#endif
 
 } // namespace test

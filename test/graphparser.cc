@@ -55,6 +55,7 @@ void BollardsGatesAndAccess(const std::string& config_file) {
   std::string ways_file = "test_ways.bin";
   std::string way_nodes_file = "test_way_nodes.bin";
   std::string access_file = "test_access.bin";
+  std::string pronunciation_file = "test_pronunciation.bin";
   std::string from_restriction_file = "test_from_complex_restrictions.bin";
   std::string to_restriction_file = "test_to_complex_restrictions.bin";
   std::string bss_nodes_file = "test_bss_nodes.bin";
@@ -62,7 +63,7 @@ void BollardsGatesAndAccess(const std::string& config_file) {
   auto osmdata =
       PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
                                 {VALHALLA_SOURCE_DIR "test/data/liechtenstein-latest.osm.pbf"},
-                                ways_file, way_nodes_file, access_file);
+                                ways_file, way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/liechtenstein-latest.osm.pbf"},
@@ -84,7 +85,8 @@ void BollardsGatesAndAccess(const std::string& config_file) {
   EXPECT_FALSE(way_85744121.moped_forward());
   EXPECT_TRUE(way_85744121.bike_forward());
   EXPECT_TRUE(way_85744121.bus_forward());
-  EXPECT_TRUE(way_85744121.pedestrian());
+  EXPECT_TRUE(way_85744121.pedestrian_forward());
+  EXPECT_TRUE(way_85744121.pedestrian_backward());
   EXPECT_FALSE(way_85744121.auto_backward());
   EXPECT_FALSE(way_85744121.moped_backward());
   EXPECT_FALSE(way_85744121.bike_backward());
@@ -95,7 +97,8 @@ void BollardsGatesAndAccess(const std::string& config_file) {
   EXPECT_TRUE(way_86260080.bike_forward());
   EXPECT_TRUE(way_86260080.bus_forward());
   EXPECT_TRUE(way_86260080.moped_forward());
-  EXPECT_TRUE(way_86260080.pedestrian());
+  EXPECT_TRUE(way_86260080.pedestrian_forward());
+  EXPECT_TRUE(way_86260080.pedestrian_backward());
   EXPECT_TRUE(way_86260080.auto_backward());
   EXPECT_TRUE(way_86260080.bike_backward());
   EXPECT_TRUE(way_86260080.bus_backward());
@@ -106,7 +109,8 @@ void BollardsGatesAndAccess(const std::string& config_file) {
   EXPECT_TRUE(way_161683833.bike_forward());
   EXPECT_TRUE(way_161683833.bus_forward());
   EXPECT_TRUE(way_161683833.moped_forward());
-  EXPECT_TRUE(way_161683833.pedestrian());
+  EXPECT_TRUE(way_161683833.pedestrian_forward());
+  EXPECT_TRUE(way_161683833.pedestrian_backward());
   EXPECT_TRUE(way_161683833.auto_backward());
   EXPECT_TRUE(way_161683833.bike_backward());
   EXPECT_TRUE(way_161683833.bus_backward());
@@ -217,13 +221,14 @@ void RemovableBollards(const std::string& config_file) {
   std::string ways_file = "test_ways.bin";
   std::string way_nodes_file = "test_way_nodes.bin";
   std::string access_file = "test_access.bin";
+  std::string pronunciation_file = "test_pronunciation.bin";
   std::string from_restriction_file = "test_from_complex_restrictions.bin";
   std::string to_restriction_file = "test_to_complex_restrictions.bin";
   std::string bss_nodes_file = "test_bss_nodes.bin";
 
   auto osmdata = PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
                                            {VALHALLA_SOURCE_DIR "test/data/rome.osm.pbf"}, ways_file,
-                                           way_nodes_file, access_file);
+                                           way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/rome.osm.pbf"},
@@ -259,13 +264,15 @@ void Exits(const std::string& config_file) {
   std::string ways_file = "test_ways.bin";
   std::string way_nodes_file = "test_way_nodes.bin";
   std::string access_file = "test_access.bin";
+  std::string pronunciation_file = "test_pronunciation.bin";
   std::string from_restriction_file = "test_from_complex_restrictions.bin";
   std::string to_restriction_file = "test_to_complex_restrictions.bin";
   std::string bss_nodes_file = "test_bss_nodes.bin";
 
-  auto osmdata = PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
-                                           {VALHALLA_SOURCE_DIR "test/data/harrisburg.osm.pbf"},
-                                           ways_file, way_nodes_file, access_file);
+  auto osmdata =
+      PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
+                                {VALHALLA_SOURCE_DIR "test/data/harrisburg.osm.pbf"}, ways_file,
+                                way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/harrisburg.osm.pbf"},
@@ -309,13 +316,15 @@ void Baltimore(const std::string& config_file) {
   std::string ways_file = "test_ways.bin";
   std::string way_nodes_file = "test_way_nodes.bin";
   std::string access_file = "test_access.bin";
+  std::string pronunciation_file = "test_pronunciation.bin";
   std::string from_restriction_file = "test_from_complex_restrictions.bin";
   std::string to_restriction_file = "test_to_complex_restrictions.bin";
   std::string bss_nodes_file = "test_bss_nodes.bin";
 
-  auto osmdata = PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
-                                           {VALHALLA_SOURCE_DIR "test/data/baltimore.osm.pbf"},
-                                           ways_file, way_nodes_file, access_file);
+  auto osmdata =
+      PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
+                                {VALHALLA_SOURCE_DIR "test/data/baltimore.osm.pbf"}, ways_file,
+                                way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/baltimore.osm.pbf"},
@@ -336,7 +345,8 @@ void Baltimore(const std::string& config_file) {
   EXPECT_FALSE(way_216240466.bus_forward());
   EXPECT_FALSE(way_216240466.moped_forward());
   EXPECT_TRUE(way_216240466.bike_forward());
-  EXPECT_TRUE(way_216240466.pedestrian());
+  EXPECT_TRUE(way_216240466.pedestrian_forward());
+  EXPECT_TRUE(way_216240466.pedestrian_backward());
   EXPECT_FALSE(way_216240466.auto_backward());
   EXPECT_FALSE(way_216240466.bus_backward());
   EXPECT_FALSE(way_216240466.moped_backward());
@@ -348,7 +358,8 @@ void Baltimore(const std::string& config_file) {
   EXPECT_TRUE(way_138388359.bus_forward());
   EXPECT_TRUE(way_138388359.moped_forward());
   EXPECT_TRUE(way_138388359.bike_forward());
-  EXPECT_TRUE(way_138388359.pedestrian());
+  EXPECT_TRUE(way_138388359.pedestrian_forward());
+  EXPECT_TRUE(way_138388359.pedestrian_backward());
   EXPECT_TRUE(way_138388359.auto_backward());
   EXPECT_TRUE(way_138388359.bus_backward());
   EXPECT_TRUE(way_138388359.moped_backward());
@@ -360,7 +371,8 @@ void Baltimore(const std::string& config_file) {
   EXPECT_FALSE(way_133689121.bus_forward());
   EXPECT_FALSE(way_133689121.moped_forward());
   EXPECT_FALSE(way_133689121.bike_forward());
-  EXPECT_TRUE(way_133689121.pedestrian());
+  EXPECT_TRUE(way_133689121.pedestrian_forward());
+  EXPECT_TRUE(way_133689121.pedestrian_backward());
   EXPECT_FALSE(way_133689121.auto_backward());
   EXPECT_FALSE(way_133689121.bus_backward());
   EXPECT_FALSE(way_133689121.moped_backward());
@@ -372,7 +384,8 @@ void Baltimore(const std::string& config_file) {
   EXPECT_TRUE(way_49641455.bus_forward());
   EXPECT_TRUE(way_49641455.moped_forward());
   EXPECT_TRUE(way_49641455.bike_forward());
-  EXPECT_TRUE(way_49641455.pedestrian());
+  EXPECT_TRUE(way_49641455.pedestrian_forward());
+  EXPECT_TRUE(way_49641455.pedestrian_backward());
   EXPECT_FALSE(way_49641455.auto_backward());
   EXPECT_FALSE(way_49641455.bus_backward());
   EXPECT_FALSE(way_49641455.moped_backward());
@@ -385,7 +398,8 @@ void Baltimore(const std::string& config_file) {
   EXPECT_TRUE(way_192573108.bus_forward());
   EXPECT_TRUE(way_192573108.moped_forward());
   EXPECT_TRUE(way_192573108.bike_forward());
-  EXPECT_TRUE(way_192573108.pedestrian());
+  EXPECT_TRUE(way_192573108.pedestrian_forward());
+  EXPECT_TRUE(way_192573108.pedestrian_backward());
   EXPECT_TRUE(way_192573108.auto_backward());
   EXPECT_TRUE(way_192573108.bus_backward());
   EXPECT_TRUE(way_192573108.moped_backward());
@@ -430,13 +444,14 @@ void Bike(const std::string& config_file) {
   std::string ways_file = "test_ways.bin";
   std::string way_nodes_file = "test_way_nodes.bin";
   std::string access_file = "test_access.bin";
+  std::string pronunciation_file = "test_pronunciation.bin";
   std::string from_restriction_file = "test_from_complex_restrictions.bin";
   std::string to_restriction_file = "test_to_complex_restrictions.bin";
   std::string bss_nodes_file = "test_bss_nodes.bin";
 
   auto osmdata = PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
                                            {VALHALLA_SOURCE_DIR "test/data/bike.osm.pbf"}, ways_file,
-                                           way_nodes_file, access_file);
+                                           way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/bike.osm.pbf"},
@@ -456,7 +471,8 @@ void Bike(const std::string& config_file) {
   EXPECT_TRUE(way_6885577.bus_forward());
   EXPECT_TRUE(way_6885577.moped_forward());
   EXPECT_FALSE(way_6885577.bike_forward());
-  EXPECT_TRUE(way_6885577.pedestrian());
+  EXPECT_TRUE(way_6885577.pedestrian_forward());
+  EXPECT_TRUE(way_6885577.pedestrian_backward());
   EXPECT_TRUE(way_6885577.auto_backward());
   EXPECT_TRUE(way_6885577.bus_backward());
   EXPECT_TRUE(way_6885577.moped_backward());
@@ -467,7 +483,8 @@ void Bike(const std::string& config_file) {
   EXPECT_FALSE(way_156539494.bus_forward());
   EXPECT_FALSE(way_156539494.moped_forward());
   EXPECT_TRUE(way_156539494.bike_forward());
-  EXPECT_FALSE(way_156539494.pedestrian());
+  EXPECT_FALSE(way_156539494.pedestrian_forward());
+  EXPECT_FALSE(way_156539494.pedestrian_backward());
   EXPECT_FALSE(way_156539494.auto_backward());
   EXPECT_FALSE(way_156539494.bus_backward());
   EXPECT_FALSE(way_156539494.moped_backward());
@@ -478,7 +495,8 @@ void Bike(const std::string& config_file) {
   EXPECT_FALSE(way_6885404.bus_forward());
   EXPECT_FALSE(way_6885404.moped_forward());
   EXPECT_TRUE(way_6885404.bike_forward());
-  EXPECT_FALSE(way_6885404.pedestrian());
+  EXPECT_FALSE(way_6885404.pedestrian_forward());
+  EXPECT_FALSE(way_6885404.pedestrian_backward());
   EXPECT_FALSE(way_6885404.auto_backward());
   EXPECT_FALSE(way_6885404.bus_backward());
   EXPECT_FALSE(way_6885404.moped_backward());
@@ -489,7 +507,8 @@ void Bike(const std::string& config_file) {
   EXPECT_TRUE(way_156539492.bus_forward());
   EXPECT_TRUE(way_156539492.moped_forward());
   EXPECT_FALSE(way_156539492.bike_forward());
-  EXPECT_TRUE(way_156539492.pedestrian());
+  EXPECT_TRUE(way_156539492.pedestrian_forward());
+  EXPECT_TRUE(way_156539492.pedestrian_backward());
   EXPECT_TRUE(way_156539492.auto_backward());
   EXPECT_TRUE(way_156539492.bus_backward());
   EXPECT_TRUE(way_156539492.moped_backward());
@@ -500,7 +519,8 @@ void Bike(const std::string& config_file) {
   EXPECT_TRUE(way_156539491.bus_forward());
   EXPECT_TRUE(way_156539491.moped_forward());
   EXPECT_TRUE(way_156539491.bike_forward());
-  EXPECT_TRUE(way_156539491.pedestrian());
+  EXPECT_TRUE(way_156539492.pedestrian_forward());
+  EXPECT_TRUE(way_156539492.pedestrian_backward());
   EXPECT_TRUE(way_156539491.auto_backward());
   EXPECT_TRUE(way_156539491.bus_backward());
   EXPECT_TRUE(way_156539491.moped_forward());
@@ -520,13 +540,14 @@ void Bus(const std::string& config_file) {
   std::string ways_file = "test_ways.bin";
   std::string way_nodes_file = "test_way_nodes.bin";
   std::string access_file = "test_access.bin";
+  std::string pronunciation_file = "test_pronunciation.bin";
   std::string from_restriction_file = "test_from_complex_restrictions.bin";
   std::string to_restriction_file = "test_to_complex_restrictions.bin";
   std::string bss_nodes_file = "test_bss_nodes.bin";
 
   auto osmdata = PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
                                            {VALHALLA_SOURCE_DIR "test/data/bus.osm.pbf"}, ways_file,
-                                           way_nodes_file, access_file);
+                                           way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/bus.osm.pbf"}, from_restriction_file,
@@ -543,7 +564,8 @@ void Bus(const std::string& config_file) {
   EXPECT_FALSE(way_14327599.moped_forward());
   EXPECT_TRUE(way_14327599.bus_forward());
   EXPECT_TRUE(way_14327599.bike_forward());
-  EXPECT_TRUE(way_14327599.pedestrian());
+  EXPECT_TRUE(way_14327599.pedestrian_forward());
+  EXPECT_TRUE(way_14327599.pedestrian_backward());
   EXPECT_FALSE(way_14327599.auto_backward());
   EXPECT_FALSE(way_14327599.moped_backward());
   EXPECT_FALSE(way_14327599.bus_backward());
@@ -554,7 +576,8 @@ void Bus(const std::string& config_file) {
   EXPECT_FALSE(way_87358588.moped_forward());
   EXPECT_FALSE(way_87358588.bus_forward());
   EXPECT_TRUE(way_87358588.bike_forward());
-  EXPECT_TRUE(way_87358588.pedestrian());
+  EXPECT_TRUE(way_87358588.pedestrian_forward());
+  EXPECT_TRUE(way_87358588.pedestrian_backward());
   EXPECT_FALSE(way_87358588.auto_backward());
   EXPECT_FALSE(way_87358588.moped_backward());
   EXPECT_FALSE(way_87358588.bus_backward());
@@ -565,7 +588,8 @@ void Bus(const std::string& config_file) {
   EXPECT_TRUE(way_49771553.moped_forward());
   EXPECT_TRUE(way_49771553.bus_forward());
   EXPECT_TRUE(way_49771553.bike_forward());
-  EXPECT_TRUE(way_49771553.pedestrian());
+  EXPECT_TRUE(way_49771553.pedestrian_forward());
+  EXPECT_TRUE(way_49771553.pedestrian_backward());
   EXPECT_TRUE(way_49771553.auto_backward());
   EXPECT_TRUE(way_49771553.moped_backward());
   EXPECT_TRUE(way_49771553.bus_backward());
@@ -576,7 +600,8 @@ void Bus(const std::string& config_file) {
   EXPECT_TRUE(way_225895737.moped_forward());
   EXPECT_TRUE(way_225895737.bus_forward());
   EXPECT_TRUE(way_225895737.bike_forward());
-  EXPECT_TRUE(way_225895737.pedestrian());
+  EXPECT_TRUE(way_225895737.pedestrian_forward());
+  EXPECT_TRUE(way_225895737.pedestrian_backward());
   EXPECT_FALSE(way_225895737.auto_backward());
   EXPECT_FALSE(way_225895737.moped_backward());
   EXPECT_FALSE(way_225895737.bus_backward());
@@ -597,13 +622,14 @@ void BicycleTrafficSignals(const std::string& config_file) {
   std::string ways_file = "test_ways.bin";
   std::string way_nodes_file = "test_way_nodes.bin";
   std::string access_file = "test_access.bin";
+  std::string pronunciation_file = "test_pronunciation.bin";
   std::string from_restriction_file = "test_from_complex_restrictions.bin";
   std::string to_restriction_file = "test_to_complex_restrictions.bin";
   std::string bss_nodes_file = "test_bss_nodes.bin";
 
   auto osmdata = PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
                                            {VALHALLA_SOURCE_DIR "test/data/nyc.osm.pbf"}, ways_file,
-                                           way_nodes_file, access_file);
+                                           way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/nyc.osm.pbf"}, from_restriction_file,
@@ -700,13 +726,14 @@ TEST(GraphParser, TestImportBssNode) {
   std::string nodes_file = "test_nodes.bin";
   std::string edges_file = "test_edges.bin";
   std::string access_file = "test_access.bin";
+  std::string pronunciation_file = "test_pronunciation.bin";
   std::string from_restriction_file = "test_from_complex_restrictions.bin";
   std::string to_restriction_file = "test_to_complex_restrictions.bin";
   std::string bss_nodes_file = "test_bss_nodes.bin";
 
   auto osmdata = PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
                                            {VALHALLA_SOURCE_DIR "test/data/rome.osm.pbf"}, ways_file,
-                                           way_nodes_file, access_file);
+                                           way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/rome.osm.pbf"},
@@ -723,9 +750,9 @@ TEST(GraphParser, TestImportBssNode) {
                                edges_file);
 
   GraphBuilder::Build(conf, osmdata, ways_file, way_nodes_file, nodes_file, edges_file,
-                      from_restriction_file, to_restriction_file, tiles);
+                      from_restriction_file, to_restriction_file, pronunciation_file, tiles);
 
-  BssBuilder::Build(conf, bss_nodes_file);
+  BssBuilder::Build(conf, osmdata, bss_nodes_file);
 
   auto local_level = TileHierarchy::levels().back().level;
 
@@ -738,8 +765,8 @@ TEST(GraphParser, TestImportBssNode) {
   EXPECT_EQ(local_tile->node(count - 1)->edge_count(), 4)
       << "The bike share node must have 4 outbound edges";
 
-  auto check_edge_attribute = [](const DirectedEdge* directededge, uint16_t forwardaccess,
-                                 uint16_t reverseaccess) {
+  auto check_edge_attribute = [&local_tile](const DirectedEdge* directededge, uint16_t forwardaccess,
+                                            uint16_t reverseaccess) {
     EXPECT_TRUE(directededge->bss_connection())
         << "The bike share node's edges is not a bss connection";
     EXPECT_TRUE(directededge->forwardaccess() & forwardaccess)
@@ -753,6 +780,19 @@ TEST(GraphParser, TestImportBssNode) {
     EXPECT_EQ(directededge->classification(), RoadClass::kResidential)
         << "The edges' road calss is incorrect";
     EXPECT_EQ(directededge->use(), Use::kRoad) << "The edges' use is incorrect";
+
+    EdgeInfo edgeinfo = local_tile->edgeinfo(directededge);
+    auto taggedValue = edgeinfo.GetTags();
+
+    auto search = taggedValue.equal_range(valhalla::baldr::TaggedValue::kBssInfo);
+    ASSERT_NE(search.first, search.second) << "BSS Tag TaggedValue::kBssInfo not found in EdgeInfo";
+    valhalla::BikeShareStationInfo bss_station_info;
+    bss_station_info.ParseFromString(search.first->second);
+
+    ASSERT_EQ(bss_station_info.ref(), "2");
+    ASSERT_EQ(bss_station_info.network(), "Atac Bikesharing");
+    ASSERT_EQ(bss_station_info.capacity(), 13);
+    ASSERT_EQ(bss_station_info.operator_(), "ATAC");
   };
 
   auto bss_edge_idx = local_tile->node(count - 1)->edge_index();

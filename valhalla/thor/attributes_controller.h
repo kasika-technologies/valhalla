@@ -63,6 +63,8 @@ const std::string kEdgeLaneCount = "edge.lane_count";
 const std::string kEdgeLaneConnectivity = "edge.lane_connectivity";
 const std::string kEdgeCycleLane = "edge.cycle_lane";
 const std::string kEdgeBicycleNetwork = "edge.bicycle_network";
+const std::string kEdgeSacScale = "edge.sac_scale";
+const std::string kEdgeShoulder = "edge.shoulder";
 const std::string kEdgeSidewalk = "edge.sidewalk";
 const std::string kEdgeDensity = "edge.density";
 const std::string kEdgeSpeedLimit = "edge.speed_limit";
@@ -71,7 +73,7 @@ const std::string kEdgeTruckRoute = "edge.truck_route";
 const std::string kEdgeDefaultSpeed = "edge.default_speed";
 const std::string kEdgeDestinationOnly = "edge.destination_only";
 const std::string kEdgeIsUrban = "edge.is_urban";
-const std::string kEdgeTaggedNames = "edge.tagged_names";
+const std::string kEdgeTaggedValues = "edge.tagged_values";
 
 // Node keys
 const std::string kNodeIntersectingEdgeBeginHeading = "node.intersecting_edge.begin_heading";
@@ -84,6 +86,8 @@ const std::string kNodeIntersectingEdgeCyclability = "node.intersecting_edge.cyc
 const std::string kNodeIntersectingEdgeWalkability = "node.intersecting_edge.walkability";
 const std::string kNodeIntersectingEdgeUse = "node.intersecting_edge.use";
 const std::string kNodeIntersectingEdgeRoadClass = "node.intersecting_edge.road_class";
+const std::string kNodeIntersectingEdgeLaneCount = "node.intersecting_edge.lane_count";
+const std::string kNodeIntersectingEdgeSignInfo = "node.intersecting_edge.sign_info";
 const std::string kNodeElapsedTime = "node.elapsed_time";
 const std::string kNodeAdminIndex = "node.admin_index";
 const std::string kNodeType = "node.type";
@@ -136,6 +140,7 @@ const std::string kShapeAttributesTime = "shape_attributes.time";
 const std::string kShapeAttributesLength = "shape_attributes.length";
 const std::string kShapeAttributesSpeed = "shape_attributes.speed";
 const std::string kShapeAttributesSpeedLimit = "shape_attributes.speed_limit";
+const std::string kShapeAttributesClosure = "shape_attributes.closure";
 
 // Categories
 const std::string kNodeCategory = "node.";

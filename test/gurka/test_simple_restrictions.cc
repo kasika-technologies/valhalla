@@ -26,7 +26,6 @@ protected:
     };
     for (int i = 0; i < 6; ++i) {
       ids.push_back(std::to_string(dist(gen)));
-      std::cout << ids.back() << std::endl;
     }
 
     const gurka::ways ways = {
@@ -94,6 +93,11 @@ TEST_F(SimpleRestrictions, ForceDetourComplex) {
 TEST_F(SimpleRestrictions, IgnoreRestriction) {
   auto result = gurka::do_action(valhalla::Options::route, map, {"C", "F"}, "auto",
                                  {{"/costing_options/auto/ignore_restrictions", "1"}});
+  gurka::assert::osrm::expect_steps(result, {"BC", "BE", "DEF"});
+  gurka::assert::raw::expect_path(result, {"BC", "BE", "DEF"});
+}
+TEST_F(SimpleRestrictions, IgnoreRestrictionPedestrian) {
+  auto result = gurka::do_action(valhalla::Options::route, map, {"C", "F"}, "pedestrian");
   gurka::assert::osrm::expect_steps(result, {"BC", "BE", "DEF"});
   gurka::assert::raw::expect_path(result, {"BC", "BE", "DEF"});
 }

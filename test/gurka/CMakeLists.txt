@@ -6,11 +6,15 @@ if(ENABLE_DATA_TOOLS)
   add_custom_target(run-gurka)
   set_target_properties(run-gurka PROPERTIES FOLDER "Tests")
 
-  if (UNIX)
+  if (UNIX AND ENABLE_SINGLE_FILES_WERROR)
     # Enables stricter compiler checks on a file-by-file basis
     # which allows us to migrate piecemeal
-    set_source_files_properties(test_route_incidents.cc PROPERTIES COMPILE_FLAGS "-Werror")
-  endif (UNIX)
+    set_source_files_properties(
+      test_route_incidents.cc
+      test_incident_loading.cc
+      test_closure_annotations.cc
+    PROPERTIES COMPILE_FLAGS "-Werror")
+  endif()
 
   ## Add executable targets
   foreach(FULLFILENAME IN ITEMS ${TEST_FILES})

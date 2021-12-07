@@ -11,6 +11,7 @@
 #include "midgard/util.h"
 #include "odin/enhancedtrippath.h"
 #include "odin/util.h"
+#include "route_summary_cache.h"
 #include "tyr/serializer_constants.h"
 #include "tyr/serializers.h"
 #include "worker.h"
@@ -39,11 +40,6 @@ const std::string kSpeedLimitUnitsKph = "km/h";
 const std::string kSpeedLimitUnitsMph = "mph";
 
 constexpr std::size_t MAX_USED_SEGMENTS = 2;
-struct NamedSegment {
-  std::string name;
-  uint32_t index;
-  float distance;
-};
 
 struct Coordinate {
   std::int32_t lng;
@@ -138,51 +134,6 @@ inline unsigned getFittedZoom(Coordinate south_west, Coordinate north_east) {
     return MIN_ZOOM;
 }
 
-// For transforming ISO 3166-1 country codes from alpha2 to alpha3
-std::unordered_map<std::string, std::string> iso2_to_iso3 =
-    {{"AD", "AND"}, {"AE", "ARE"}, {"AF", "AFG"}, {"AG", "ATG"}, {"AI", "AIA"}, {"AL", "ALB"},
-     {"AM", "ARM"}, {"AO", "AGO"}, {"AQ", "ATA"}, {"AR", "ARG"}, {"AS", "ASM"}, {"AT", "AUT"},
-     {"AU", "AUS"}, {"AW", "ABW"}, {"AX", "ALA"}, {"AZ", "AZE"}, {"BA", "BIH"}, {"BB", "BRB"},
-     {"BD", "BGD"}, {"BE", "BEL"}, {"BF", "BFA"}, {"BG", "BGR"}, {"BH", "BHR"}, {"BI", "BDI"},
-     {"BJ", "BEN"}, {"BL", "BLM"}, {"BM", "BMU"}, {"BN", "BRN"}, {"BO", "BOL"}, {"BQ", "BES"},
-     {"BR", "BRA"}, {"BS", "BHS"}, {"BT", "BTN"}, {"BV", "BVT"}, {"BW", "BWA"}, {"BY", "BLR"},
-     {"BZ", "BLZ"}, {"CA", "CAN"}, {"CC", "CCK"}, {"CD", "COD"}, {"CF", "CAF"}, {"CG", "COG"},
-     {"CH", "CHE"}, {"CI", "CIV"}, {"CK", "COK"}, {"CL", "CHL"}, {"CM", "CMR"}, {"CN", "CHN"},
-     {"CO", "COL"}, {"CR", "CRI"}, {"CU", "CUB"}, {"CV", "CPV"}, {"CW", "CUW"}, {"CX", "CXR"},
-     {"CY", "CYP"}, {"CZ", "CZE"}, {"DE", "DEU"}, {"DJ", "DJI"}, {"DK", "DNK"}, {"DM", "DMA"},
-     {"DO", "DOM"}, {"DZ", "DZA"}, {"EC", "ECU"}, {"EE", "EST"}, {"EG", "EGY"}, {"EH", "ESH"},
-     {"ER", "ERI"}, {"ES", "ESP"}, {"ET", "ETH"}, {"FI", "FIN"}, {"FJ", "FJI"}, {"FK", "FLK"},
-     {"FM", "FSM"}, {"FO", "FRO"}, {"FR", "FRA"}, {"GA", "GAB"}, {"GB", "GBR"}, {"GD", "GRD"},
-     {"GE", "GEO"}, {"GF", "GUF"}, {"GG", "GGY"}, {"GH", "GHA"}, {"GI", "GIB"}, {"GL", "GRL"},
-     {"GM", "GMB"}, {"GN", "GIN"}, {"GP", "GLP"}, {"GQ", "GNQ"}, {"GR", "GRC"}, {"GS", "SGS"},
-     {"GT", "GTM"}, {"GU", "GUM"}, {"GW", "GNB"}, {"GY", "GUY"}, {"HK", "HKG"}, {"HM", "HMD"},
-     {"HN", "HND"}, {"HR", "HRV"}, {"HT", "HTI"}, {"HU", "HUN"}, {"ID", "IDN"}, {"IE", "IRL"},
-     {"IL", "ISR"}, {"IM", "IMN"}, {"IN", "IND"}, {"IO", "IOT"}, {"IQ", "IRQ"}, {"IR", "IRN"},
-     {"IS", "ISL"}, {"IT", "ITA"}, {"JE", "JEY"}, {"JM", "JAM"}, {"JO", "JOR"}, {"JP", "JPN"},
-     {"KE", "KEN"}, {"KG", "KGZ"}, {"KH", "KHM"}, {"KI", "KIR"}, {"KM", "COM"}, {"KN", "KNA"},
-     {"KP", "PRK"}, {"KR", "KOR"}, {"XK", "XKX"}, {"KW", "KWT"}, {"KY", "CYM"}, {"KZ", "KAZ"},
-     {"LA", "LAO"}, {"LB", "LBN"}, {"LC", "LCA"}, {"LI", "LIE"}, {"LK", "LKA"}, {"LR", "LBR"},
-     {"LS", "LSO"}, {"LT", "LTU"}, {"LU", "LUX"}, {"LV", "LVA"}, {"LY", "LBY"}, {"MA", "MAR"},
-     {"MC", "MCO"}, {"MD", "MDA"}, {"ME", "MNE"}, {"MF", "MAF"}, {"MG", "MDG"}, {"MH", "MHL"},
-     {"MK", "MKD"}, {"ML", "MLI"}, {"MM", "MMR"}, {"MN", "MNG"}, {"MO", "MAC"}, {"MP", "MNP"},
-     {"MQ", "MTQ"}, {"MR", "MRT"}, {"MS", "MSR"}, {"MT", "MLT"}, {"MU", "MUS"}, {"MV", "MDV"},
-     {"MW", "MWI"}, {"MX", "MEX"}, {"MY", "MYS"}, {"MZ", "MOZ"}, {"NA", "NAM"}, {"NC", "NCL"},
-     {"NE", "NER"}, {"NF", "NFK"}, {"NG", "NGA"}, {"NI", "NIC"}, {"NL", "NLD"}, {"NO", "NOR"},
-     {"NP", "NPL"}, {"NR", "NRU"}, {"NU", "NIU"}, {"NZ", "NZL"}, {"OM", "OMN"}, {"PA", "PAN"},
-     {"PE", "PER"}, {"PF", "PYF"}, {"PG", "PNG"}, {"PH", "PHL"}, {"PK", "PAK"}, {"PL", "POL"},
-     {"PM", "SPM"}, {"PN", "PCN"}, {"PR", "PRI"}, {"PS", "PSE"}, {"PT", "PRT"}, {"PW", "PLW"},
-     {"PY", "PRY"}, {"QA", "QAT"}, {"RE", "REU"}, {"RO", "ROU"}, {"RS", "SRB"}, {"RU", "RUS"},
-     {"RW", "RWA"}, {"SA", "SAU"}, {"SB", "SLB"}, {"SC", "SYC"}, {"SD", "SDN"}, {"SS", "SSD"},
-     {"SE", "SWE"}, {"SG", "SGP"}, {"SH", "SHN"}, {"SI", "SVN"}, {"SJ", "SJM"}, {"SK", "SVK"},
-     {"SL", "SLE"}, {"SM", "SMR"}, {"SN", "SEN"}, {"SO", "SOM"}, {"SR", "SUR"}, {"ST", "STP"},
-     {"SV", "SLV"}, {"SX", "SXM"}, {"SY", "SYR"}, {"SZ", "SWZ"}, {"TC", "TCA"}, {"TD", "TCD"},
-     {"TF", "ATF"}, {"TG", "TGO"}, {"TH", "THA"}, {"TJ", "TJK"}, {"TK", "TKL"}, {"TL", "TLS"},
-     {"TM", "TKM"}, {"TN", "TUN"}, {"TO", "TON"}, {"TR", "TUR"}, {"TT", "TTO"}, {"TV", "TUV"},
-     {"TW", "TWN"}, {"TZ", "TZA"}, {"UA", "UKR"}, {"UG", "UGA"}, {"UM", "UMI"}, {"US", "USA"},
-     {"UY", "URY"}, {"UZ", "UZB"}, {"VA", "VAT"}, {"VC", "VCT"}, {"VE", "VEN"}, {"VG", "VGB"},
-     {"VI", "VIR"}, {"VN", "VNM"}, {"VU", "VUT"}, {"WF", "WLF"}, {"WS", "WSM"}, {"YE", "YEM"},
-     {"YT", "MYT"}, {"ZA", "ZAF"}, {"ZM", "ZMB"}, {"ZW", "ZWE"}, {"CS", "SCG"}, {"AN", "ANT"}};
-
 // Sign style and unit conventions for speed limit signs by country.
 // Most countries use Vienna style and km/h, but the countries below
 // use MUTCD and/or mph conventions.
@@ -246,6 +197,8 @@ OSRM output is described in: http://project-osrm.org/docs/v5.5.1/api/
 }
 */
 
+std::string destinations(const valhalla::TripSign& sign);
+
 // Add OSRM route summary information: distance, duration
 void route_summary(json::MapPtr& route, const valhalla::Api& api, bool imperial, int route_index) {
   // Compute total distance and duration
@@ -273,10 +226,10 @@ void route_summary(json::MapPtr& route, const valhalla::Api& api, bool imperial,
 
   // Convert distance to meters. Output distance and duration.
   distance = units_to_meters(distance, !imperial);
-  route->emplace("distance", json::fp_t{distance, 3});
-  route->emplace("duration", json::fp_t{duration, 3});
+  route->emplace("distance", json::fixed_t{distance, 3});
+  route->emplace("duration", json::fixed_t{duration, 3});
 
-  route->emplace("weight", json::fp_t{weight, 3});
+  route->emplace("weight", json::fixed_t{weight, 3});
   assert(api.options().costing_options(api.options().costing()).has_name());
   route->emplace("weight_name", api.options().costing_options(api.options().costing()).name());
 
@@ -286,8 +239,8 @@ void route_summary(json::MapPtr& route, const valhalla::Api& api, bool imperial,
       route->emplace("duration_" + recosting_itr->name(), nullptr_t());
       route->emplace("weight_" + recosting_itr->name(), nullptr_t());
     } else {
-      route->emplace("duration_" + recosting_itr->name(), json::fp_t{recost.first, 3});
-      route->emplace("weight_" + recosting_itr->name(), json::fp_t{recost.second, 3});
+      route->emplace("duration_" + recosting_itr->name(), json::fixed_t{recost.first, 3});
+      route->emplace("weight_" + recosting_itr->name(), json::fixed_t{recost.second, 3});
     }
     ++recosting_itr;
   }
@@ -299,8 +252,8 @@ json::MapPtr geojson_shape(const std::vector<PointLL> shape) {
   auto coords = json::array({});
   coords->reserve(shape.size());
   for (const auto& p : shape) {
-    coords->emplace_back(
-        json::array({json::fp_t{p.lng(), DIGITS_PRECISION}, json::fp_t{p.lat(), DIGITS_PRECISION}}));
+    coords->emplace_back(json::array(
+        {json::fixed_t{p.lng(), DIGITS_PRECISION}, json::fixed_t{p.lat(), DIGITS_PRECISION}}));
   }
   geojson->emplace("type", std::string("LineString"));
   geojson->emplace("coordinates", std::move(coords));
@@ -385,7 +338,7 @@ json::MapPtr serialize_annotations(const valhalla::TripLeg& trip_leg) {
     duration_array->reserve(trip_leg.shape_attributes().time_size());
     for (const auto& time : trip_leg.shape_attributes().time()) {
       // milliseconds (ms) to seconds (sec)
-      duration_array->push_back(json::fp_t{time * kSecPerMillisecond, 3});
+      duration_array->push_back(json::fixed_t{time * kSecPerMillisecond, 3});
     }
     attributes_map->emplace("duration", duration_array);
   }
@@ -395,7 +348,7 @@ json::MapPtr serialize_annotations(const valhalla::TripLeg& trip_leg) {
     distance_array->reserve(trip_leg.shape_attributes().length_size());
     for (const auto& length : trip_leg.shape_attributes().length()) {
       // decimeters (dm) to meters (m)
-      distance_array->push_back(json::fp_t{length * kMeterPerDecimeter, 1});
+      distance_array->push_back(json::fixed_t{length * kMeterPerDecimeter, 1});
     }
     attributes_map->emplace("distance", distance_array);
   }
@@ -405,7 +358,7 @@ json::MapPtr serialize_annotations(const valhalla::TripLeg& trip_leg) {
     speeds_array->reserve(trip_leg.shape_attributes().speed_size());
     for (const auto& speed : trip_leg.shape_attributes().speed()) {
       // dm/s to m/s
-      speeds_array->push_back(json::fp_t{speed * kMeterPerDecimeter, 1});
+      speeds_array->push_back(json::fixed_t{speed * kMeterPerDecimeter, 1});
     }
     attributes_map->emplace("speed", speeds_array);
   }
@@ -452,7 +405,7 @@ json::ArrayPtr waypoints(google::protobuf::RepeatedPtrField<valhalla::Location>&
   // waypoint index (which is the index in the optimized order).
   auto waypoints = json::array({});
   for (const auto& index : indexes) {
-    locs.Mutable(index)->set_shape_index(index);
+    locs.Mutable(index)->set_waypoint_index(index);
     waypoints->emplace_back(osrm::waypoint(locs.Get(index), false, true));
   }
   return waypoints;
@@ -499,8 +452,8 @@ json::ArrayPtr intersections(const valhalla::DirectionsLeg::Maneuver& maneuver,
     auto loc = json::array({});
     size_t shape_index = arrive_maneuver ? shape.size() - 1 : curr_edge->begin_shape_index();
     PointLL ll = shape[shape_index];
-    loc->emplace_back(json::fp_t{ll.lng(), 6});
-    loc->emplace_back(json::fp_t{ll.lat(), 6});
+    loc->emplace_back(json::fixed_t{ll.lng(), 6});
+    loc->emplace_back(json::fixed_t{ll.lat(), 6});
     intersection->emplace("location", loc);
     intersection->emplace("geometry_index", static_cast<uint64_t>(shape_index));
 
@@ -525,17 +478,18 @@ json::ArrayPtr intersections(const valhalla::DirectionsLeg::Maneuver& maneuver,
       intersection->emplace("toll_collection", toll_collection);
 
     if (node->cost().transition_cost().seconds() > 0)
-      intersection->emplace("turn_duration", json::fp_t{node->cost().transition_cost().seconds(), 3});
+      intersection->emplace("turn_duration",
+                            json::fixed_t{node->cost().transition_cost().seconds(), 3});
     if (node->cost().transition_cost().cost() > 0)
-      intersection->emplace("turn_weight", json::fp_t{node->cost().transition_cost().cost(), 3});
+      intersection->emplace("turn_weight", json::fixed_t{node->cost().transition_cost().cost(), 3});
     auto next_node = i + 1 < n ? etp->GetEnhancedNode(i + 1) : nullptr;
     if (next_node) {
       auto secs = next_node->cost().elapsed_cost().seconds() - node->cost().elapsed_cost().seconds();
       auto cost = next_node->cost().elapsed_cost().cost() - node->cost().elapsed_cost().cost();
       if (secs > 0)
-        intersection->emplace("duration", json::fp_t{secs, 3});
+        intersection->emplace("duration", json::fixed_t{secs, 3});
       if (cost > 0)
-        intersection->emplace("weight", json::fp_t{cost, 3});
+        intersection->emplace("weight", json::fixed_t{cost, 3});
     }
 
     // TODO: add recosted durations to the intersection?
@@ -547,12 +501,28 @@ json::ArrayPtr intersections(const valhalla::DirectionsLeg::Maneuver& maneuver,
         auto intersecting_edge = node->GetIntersectingEdge(m);
         bool routeable = intersecting_edge->IsTraversableOutbound(curr_edge->travel_mode());
 
+        std::string sign_text;
+        if (intersecting_edge->has_sign()) {
+          const valhalla::TripSign& trip_leg_sign = intersecting_edge->sign();
+          // I've looked at the results from guide_destinations(), destinations(), and
+          // exit_destinations(). exit_destinations() does not contain rest-area names.
+          // guide_destinations() and destinations() return the same string value for
+          // the rest area name. So I've decided to use guide_destinations().
+          sign_text = destinations(trip_leg_sign);
+        }
+
         if (routeable && intersecting_edge->use() == TripLeg_Use_kRestAreaUse) {
           rest_stop->emplace("type", std::string("rest_area"));
+          if (!sign_text.empty()) {
+            rest_stop->emplace("name", sign_text);
+          }
           intersection->emplace("rest_stop", rest_stop);
           break;
         } else if (routeable && intersecting_edge->use() == TripLeg_Use_kServiceAreaUse) {
           rest_stop->emplace("type", std::string("service_area"));
+          if (!sign_text.empty()) {
+            rest_stop->emplace("name", sign_text);
+          }
           intersection->emplace("rest_stop", rest_stop);
           break;
         }
@@ -609,10 +579,10 @@ json::ArrayPtr intersections(const valhalla::DirectionsLeg::Maneuver& maneuver,
 
     // Add tunnel_name for tunnels
     if (!arrive_maneuver) {
-      if (curr_edge->tunnel() && !curr_edge->tagged_name().empty()) {
-        for (uint32_t t = 0; t < curr_edge->tagged_name().size(); ++t) {
-          if (curr_edge->tagged_name().Get(t).type() == TaggedName_Type_kTunnel) {
-            intersection->emplace("tunnel_name", curr_edge->tagged_name().Get(t).value());
+      if (curr_edge->tunnel() && !curr_edge->tagged_value().empty()) {
+        for (uint32_t t = 0; t < curr_edge->tagged_value().size(); ++t) {
+          if (curr_edge->tagged_value().Get(t).type() == TaggedValue_Type_kTunnel) {
+            intersection->emplace("tunnel_name", curr_edge->tagged_value().Get(t).value());
           }
         }
       }
@@ -722,7 +692,7 @@ json::ArrayPtr intersections(const valhalla::DirectionsLeg::Maneuver& maneuver,
 }
 
 // Add exits (exit numbers) along a step/maneuver.
-std::string exits(const valhalla::DirectionsLeg_Maneuver_Sign& sign) {
+std::string exits(const valhalla::TripSign& sign) {
   // Iterate through the exit numbers
   std::string exits;
   for (const auto& number : sign.exit_numbers()) {
@@ -773,11 +743,26 @@ void serializeIncidents(const google::protobuf::RepeatedPtrField<TripLeg::Incide
   doc.emplace("incidents", serialized_incidents);
 }
 
+void serializeClosures(const valhalla::TripLeg& leg, json::Jmap& doc) {
+  if (!leg.closures_size()) {
+    return;
+  }
+  auto closures = json::array({});
+  closures->reserve(leg.closures_size());
+  for (const valhalla::TripLeg_Closure& closure : leg.closures()) {
+    auto closure_obj = json::map({});
+    closure_obj->emplace("geometry_index_start", static_cast<uint64_t>(closure.begin_shape_index()));
+    closure_obj->emplace("geometry_index_end", static_cast<uint64_t>(closure.end_shape_index()));
+    closures->emplace_back(std::move(closure_obj));
+  }
+  doc.emplace("closures", closures);
+}
+
 // Compile and return the refs of the specified list
 // TODO we could enhance by limiting results by using consecutive count
-std::string get_sign_element_refs(const google::protobuf::RepeatedPtrField<
-                                      ::valhalla::DirectionsLeg_Maneuver_SignElement>& sign_elements,
-                                  const std::string& delimiter = kSignElementDelimiter) {
+std::string get_sign_element_refs(
+    const google::protobuf::RepeatedPtrField<::valhalla::TripSignElement>& sign_elements,
+    const std::string& delimiter = kSignElementDelimiter) {
   std::string refs;
   for (const auto& sign_element : sign_elements) {
     // Only process refs
@@ -796,8 +781,7 @@ std::string get_sign_element_refs(const google::protobuf::RepeatedPtrField<
 // Compile and return the nonrefs of the specified list
 // TODO we could enhance by limiting results by using consecutive count
 std::string get_sign_element_nonrefs(
-    const google::protobuf::RepeatedPtrField<::valhalla::DirectionsLeg_Maneuver_SignElement>&
-        sign_elements,
+    const google::protobuf::RepeatedPtrField<::valhalla::TripSignElement>& sign_elements,
     const std::string& delimiter = kSignElementDelimiter) {
   std::string nonrefs;
   for (const auto& sign_element : sign_elements) {
@@ -816,9 +800,9 @@ std::string get_sign_element_nonrefs(
 
 // Compile and return the sign elements of the specified list
 // TODO we could enhance by limiting results by using consecutive count
-std::string get_sign_elements(const google::protobuf::RepeatedPtrField<
-                                  ::valhalla::DirectionsLeg_Maneuver_SignElement>& sign_elements,
-                              const std::string& delimiter = kSignElementDelimiter) {
+std::string get_sign_elements(
+    const google::protobuf::RepeatedPtrField<::valhalla::TripSignElement>& sign_elements,
+    const std::string& delimiter = kSignElementDelimiter) {
   std::string sign_elements_string;
   for (const auto& sign_element : sign_elements) {
     // If the sign_elements_string is not empty, append specified delimiter
@@ -831,7 +815,7 @@ std::string get_sign_elements(const google::protobuf::RepeatedPtrField<
   return sign_elements_string;
 }
 
-bool exit_destinations_exist(const valhalla::DirectionsLeg_Maneuver_Sign& sign) {
+bool exit_destinations_exist(const valhalla::TripSign& sign) {
   if ((sign.exit_onto_streets_size() > 0) || (sign.exit_toward_locations_size() > 0) ||
       (sign.exit_names_size() > 0)) {
     return true;
@@ -840,7 +824,7 @@ bool exit_destinations_exist(const valhalla::DirectionsLeg_Maneuver_Sign& sign) 
 }
 
 // Return the exit destinations
-std::string exit_destinations(const valhalla::DirectionsLeg_Maneuver_Sign& sign) {
+std::string exit_destinations(const valhalla::TripSign& sign) {
 
   /////////////////////////////////////////////////////////////////////////////
   // Process the refs
@@ -897,7 +881,7 @@ std::string exit_destinations(const valhalla::DirectionsLeg_Maneuver_Sign& sign)
 }
 
 // Return the guide destinations
-std::string guide_destinations(const valhalla::DirectionsLeg_Maneuver_Sign& sign) {
+std::string guide_destinations(const valhalla::TripSign& sign) {
 
   /////////////////////////////////////////////////////////////////////////////
   // Process the refs
@@ -949,7 +933,7 @@ std::string guide_destinations(const valhalla::DirectionsLeg_Maneuver_Sign& sign
 //   3. <ref>: <non-ref>
 // Each <ref> or <non-ref> could have one or more items and will separated with ", "
 //   for example: "I 99, US 220, US 30: Altoona, Johnstown"
-std::string destinations(const valhalla::DirectionsLeg_Maneuver_Sign& sign) {
+std::string destinations(const valhalla::TripSign& sign) {
   if (exit_destinations_exist(sign)) {
     return exit_destinations(sign);
   }
@@ -1079,8 +1063,8 @@ json::MapPtr osrm_maneuver(const valhalla::DirectionsLeg::Maneuver& maneuver,
 
   // Set the location
   auto loc = json::array({});
-  loc->emplace_back(json::fp_t{man_ll.lng(), 6});
-  loc->emplace_back(json::fp_t{man_ll.lat(), 6});
+  loc->emplace_back(json::fixed_t{man_ll.lng(), 6});
+  loc->emplace_back(json::fixed_t{man_ll.lat(), 6});
   osrm_man->emplace("location", loc);
 
   // Get incoming and outgoing bearing. For the incoming heading, use the
@@ -1265,18 +1249,23 @@ std::string get_mode(const valhalla::DirectionsLeg::Maneuver& maneuver,
                            " Unhandled travel_mode: " + std::to_string(num));
 }
 
+const ::google::protobuf::RepeatedPtrField<::valhalla::StreetName>&
+get_maneuver_street_names(const valhalla::DirectionsLeg::Maneuver& maneuver) {
+  // Roundabouts need to use the roundabout_exit_street_names
+  // if a maneuver begin street name exists then use it otherwise use the maneuver street name
+  // TODO: in the future we may switch to use both
+  return ((maneuver.type() == DirectionsLeg_Maneuver_Type_kRoundaboutEnter)
+              ? maneuver.roundabout_exit_street_names()
+              : (maneuver.begin_street_name_size() > 0) ? maneuver.begin_street_name()
+                                                        : maneuver.street_name());
+}
+
 // Get the names and ref names
 std::pair<std::string, std::string>
 names_and_refs(const valhalla::DirectionsLeg::Maneuver& maneuver) {
   std::string names, refs;
 
-  // Roundabouts need to use the roundabout_exit_street_names
-  // if a maneuver begin street name exists then use it otherwise use the maneuver street name
-  // TODO: in the future we may switch to use both
-  auto& street_names = (maneuver.type() == DirectionsLeg_Maneuver_Type_kRoundaboutEnter)
-                           ? maneuver.roundabout_exit_street_names()
-                           : (maneuver.begin_street_name_size() > 0) ? maneuver.begin_street_name()
-                                                                     : maneuver.street_name();
+  const auto& street_names = get_maneuver_street_names(maneuver);
 
   for (const auto& name : street_names) {
     // Check if the name is a ref
@@ -1295,62 +1284,28 @@ names_and_refs(const valhalla::DirectionsLeg::Maneuver& maneuver) {
 
   return std::make_pair(names, refs);
 }
+// Get the pronunciations string
+std::string get_pronunciations(const valhalla::DirectionsLeg::Maneuver& maneuver) {
+  std::string pronunciations;
 
-// This is an initial implementation to be as good or better than the current OSRM response
-// In the future we shall use the percent of name distance as compared to the total distance
-// to determine how many named segments to display.
-// Also, might need to combine some similar named segments
-std::string
-summarize_leg(google::protobuf::RepeatedPtrField<valhalla::DirectionsLeg>::const_iterator leg) {
-  // Create a map of maneuver names to index,distance pairs
-  std::unordered_map<std::string, std::pair<uint32_t, float>> maneuver_summary_map;
-  uint32_t maneuver_index = 0;
-  for (const auto& maneuver : leg->maneuver()) {
-    if (maneuver.street_name_size() > 0) {
-      const std::string& name = maneuver.street_name(0).value();
-      auto maneuver_summary = maneuver_summary_map.find(name);
-      if (maneuver_summary == maneuver_summary_map.end()) {
-        maneuver_summary_map[name] = std::make_pair(maneuver_index, maneuver.length());
-      } else {
-        maneuver_summary->second.second += maneuver.length();
+  const auto& street_names = get_maneuver_street_names(maneuver);
+
+  for (const auto& name : street_names) {
+    // If name has a pronunciation and is not a route number then use it
+    if (name.has_pronunciation() && !name.is_route_number()) {
+      if (!pronunciations.empty()) {
+        pronunciations += "; ";
       }
+      pronunciations += name.pronunciation().value();
     }
-    // Increment maneuver index
-    ++maneuver_index;
   }
 
-  // Create a list of named segments (maneuver name, index, distance items)
-  std::vector<NamedSegment> named_segments;
-  named_segments.reserve(maneuver_summary_map.size());
-  for (const auto& map_item : maneuver_summary_map) {
-    named_segments.emplace_back(
-        NamedSegment{map_item.first, map_item.second.first, map_item.second.second});
-  }
-
-  // Sort list by descending maneuver distance
-  std::sort(named_segments.begin(), named_segments.end(),
-            [](const NamedSegment& a, const NamedSegment& b) { return b.distance < a.distance; });
-
-  // Reduce the list size to the summary list max
-  named_segments.resize(std::min(named_segments.size(), MAX_USED_SEGMENTS));
-
-  // Sort final list by ascending maneuver index
-  std::sort(named_segments.begin(), named_segments.end(),
-            [](const NamedSegment& a, const NamedSegment& b) { return a.index < b.index; });
-
-  // Create single summary string from list
-  std::stringstream ss;
-  for (size_t i = 0; i < named_segments.size(); ++i) {
-    if (i != 0)
-      ss << ", ";
-    ss << named_segments[i].name;
-  }
-
-  return ss.str();
+  return pronunciations;
 }
 
 // Serialize each leg
 json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla::DirectionsLeg>& legs,
+                              const std::vector<std::string>& leg_summaries,
                               google::protobuf::RepeatedPtrField<valhalla::TripLeg>& path_legs,
                               bool imperial,
                               const valhalla::Options& options) {
@@ -1363,7 +1318,9 @@ json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla:
   }
 
   // Iterate through the legs in DirectionsLeg and TripLeg
+  int leg_index = 0;
   auto leg = legs.begin();
+
   for (auto& path_leg : path_legs) {
     valhalla::odin::EnhancedTripLeg etp(path_leg);
     auto output_leg = json::map({});
@@ -1380,6 +1337,7 @@ json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla:
     std::string drive_side = "right";
     std::string name = "";
     std::string ref = "";
+    std::string pronunciation = "";
     std::string mode = "";
     std::string prev_mode = "";
     bool rotary = false;
@@ -1412,6 +1370,7 @@ json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla:
         auto name_ref_pair = names_and_refs(maneuver);
         name = name_ref_pair.first;
         ref = name_ref_pair.second;
+        pronunciation = get_pronunciations(maneuver);
         mode = get_mode(maneuver, arrive_maneuver, &etp);
         if (prev_mode.empty())
           prev_mode = mode;
@@ -1419,24 +1378,24 @@ json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla:
 
       step->emplace("mode", mode);
       step->emplace("driving_side", drive_side);
-      step->emplace("distance", json::fp_t{distance, 3});
-      step->emplace("duration", json::fp_t{duration, 3});
+      step->emplace("distance", json::fixed_t{distance, 3});
+      step->emplace("duration", json::fixed_t{duration, 3});
       const auto& end_node = path_leg.node(maneuver.end_path_index());
       const auto& begin_node = path_leg.node(maneuver.begin_path_index());
       auto weight = end_node.cost().elapsed_cost().cost() - begin_node.cost().elapsed_cost().cost();
-      step->emplace("weight", json::fp_t{weight, 3});
+      step->emplace("weight", json::fixed_t{weight, 3});
       auto recost_itr = options.recostings().begin();
       auto begin_recost_itr = begin_node.recosts().begin();
       for (const auto& end_recost : end_node.recosts()) {
         if (end_recost.has_elapsed_cost()) {
           step->emplace("duration_" + recost_itr->name(),
-                        json::fp_t{end_recost.elapsed_cost().seconds() -
-                                       begin_recost_itr->elapsed_cost().seconds(),
-                                   3});
+                        json::fixed_t{end_recost.elapsed_cost().seconds() -
+                                          begin_recost_itr->elapsed_cost().seconds(),
+                                      3});
           step->emplace("weight_" + recost_itr->name(),
-                        json::fp_t{end_recost.elapsed_cost().cost() -
-                                       begin_recost_itr->elapsed_cost().cost(),
-                                   3});
+                        json::fixed_t{end_recost.elapsed_cost().cost() -
+                                          begin_recost_itr->elapsed_cost().cost(),
+                                      3});
         } else {
           step->emplace("duration_" + recost_itr->name(), nullptr_t());
           step->emplace("weight_" + recost_itr->name(), nullptr_t());
@@ -1448,6 +1407,9 @@ json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla:
       step->emplace("name", name);
       if (!ref.empty()) {
         step->emplace("ref", ref);
+      }
+      if (!pronunciation.empty()) {
+        step->emplace("pronunciation", pronunciation);
       }
 
       // Check if speed limits were requested
@@ -1548,18 +1510,18 @@ json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla:
     // Get a summary based on longest maneuvers.
     double duration = leg->summary().time();
     double distance = units_to_meters(leg->summary().length(), !imperial);
-    output_leg->emplace("summary", summarize_leg(leg));
-    output_leg->emplace("distance", json::fp_t{distance, 3});
-    output_leg->emplace("duration", json::fp_t{duration, 3});
+    output_leg->emplace("summary", leg_summaries[leg_index]);
+    output_leg->emplace("distance", json::fixed_t{distance, 3});
+    output_leg->emplace("duration", json::fixed_t{duration, 3});
     output_leg->emplace("weight",
-                        json::fp_t{path_leg.node().rbegin()->cost().elapsed_cost().cost(), 3});
+                        json::fixed_t{path_leg.node().rbegin()->cost().elapsed_cost().cost(), 3});
     auto recost_itr = options.recostings().begin();
     for (const auto& recost : path_leg.node().rbegin()->recosts()) {
       if (recost.has_elapsed_cost()) {
         output_leg->emplace("duration_" + recost_itr->name(),
-                            json::fp_t{recost.elapsed_cost().seconds(), 3});
+                            json::fixed_t{recost.elapsed_cost().seconds(), 3});
         output_leg->emplace("weight_" + recost_itr->name(),
-                            json::fp_t{recost.elapsed_cost().cost(), 3});
+                            json::fixed_t{recost.elapsed_cost().cost(), 3});
       } else {
         output_leg->emplace("duration_" + recost_itr->name(), nullptr_t());
         output_leg->emplace("weight_" + recost_itr->name(), nullptr_t());
@@ -1574,9 +1536,9 @@ json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla:
       auto admin_map = json::map({});
       if (admin.has_country_code()) {
         admin_map->emplace("iso_3166_1", admin.country_code());
-        auto country_iso3 = iso2_to_iso3.find(admin.country_code());
-        if (country_iso3 != iso2_to_iso3.end()) {
-          admin_map->emplace("iso_3166_1_alpha3", country_iso3->second);
+        auto country_iso3 = valhalla::baldr::get_iso_3166_1_alpha3(admin.country_code());
+        if (!country_iso3.empty()) {
+          admin_map->emplace("iso_3166_1_alpha3", country_iso3);
         }
       }
       // TODO: iso_3166_2 state code
@@ -1592,14 +1554,96 @@ json::ArrayPtr serialize_legs(const google::protobuf::RepeatedPtrField<valhalla:
       output_leg->emplace("annotation", serialize_annotations(path_leg));
     }
 
+    // Add via waypoints to the leg
+    output_leg->emplace("via_waypoints", osrm::intermediate_waypoints(path_leg));
+
     // Add incidents to the leg
     serializeIncidents(path_leg.incidents(), *output_leg);
+
+    // Add closures
+    serializeClosures(path_leg, *output_leg);
 
     // Keep the leg
     output_legs->emplace_back(std::move(output_leg));
     leg++;
+    leg_index++;
   }
   return output_legs;
+}
+
+std::vector<std::vector<std::string>>
+summarize_route_legs(const google::protobuf::RepeatedPtrField<DirectionsRoute>& routes) {
+
+  route_summary_cache rscache(routes);
+
+  // vector 1: routes
+  // vector 2: legs
+  // string: unique summary for the route/leg
+  std::vector<std::vector<std::string>> all_summaries;
+  all_summaries.reserve(routes.size());
+
+  // Find the simplest summary for every leg of every route. Important note:
+  // each route should have the same number of legs. Hence, we only need to make
+  // unique the same leg (leg_idx) between all routes.
+  for (size_t route_i = 0; route_i < routes.size(); route_i++) {
+
+    size_t num_legs_i = routes.Get(route_i).legs_size();
+    std::vector<std::string> leg_summaries;
+    leg_summaries.reserve(num_legs_i);
+
+    for (size_t leg_idx = 0; leg_idx < num_legs_i; leg_idx++) {
+
+      // we desire each summary to be comprised of at least two named segments.
+      // however, if only one is available that's all we can use.
+      size_t num_named_segments_i = rscache.num_named_segments_for_route_leg(route_i, leg_idx);
+      size_t num_named_segs_needed = std::min(MAX_USED_SEGMENTS, num_named_segments_i);
+
+      // Compare every jth route/leg summary vs the current ith route/leg summary.
+      // We desire to compute num_named_segs_needed, which is the number of named
+      // segments needed to uniquely identify the ith's summary.
+      for (size_t route_j = 0; route_j < routes.size(); route_j++) {
+
+        // avoid self
+        if (route_i == route_j)
+          continue;
+
+        size_t num_legs_j = routes.Get(route_j).legs_size();
+
+        // there should be the same number of legs in every route. however, some
+        // unit tests break this rule, so we cannot enable this assert.
+        // assert(num_legs_i == num_legs_j);
+        if (leg_idx >= num_legs_j)
+          continue;
+
+        size_t num_named_segments_j = rscache.num_named_segments_for_route_leg(route_j, leg_idx);
+
+        size_t num_comparable = std::min(num_named_segments_i, num_named_segments_j);
+
+        // k is the number of named segments in the summary. It keeps going
+        // up by 1 until route_i's summary is different than the route_j's.
+        size_t k = std::min(num_named_segs_needed, num_comparable);
+        for (; (k < num_comparable); k++) {
+          const std::string& summary_i = rscache.get_n_segment_summary(route_i, leg_idx, k);
+          const std::string& summary_j = rscache.get_n_segment_summary(route_j, leg_idx, k);
+          if (summary_i != summary_j)
+            break;
+        }
+
+        if (k > num_named_segs_needed) {
+          num_named_segs_needed = k;
+        }
+      }
+
+      std::string leg_summary =
+          rscache.get_n_segment_summary(route_i, leg_idx, num_named_segs_needed);
+
+      leg_summaries.emplace_back(std::move(leg_summary));
+    }
+
+    all_summaries.emplace_back(std::move(leg_summaries));
+  }
+
+  return all_summaries;
 }
 
 // Serialize route response in OSRM compatible format.
@@ -1635,6 +1679,13 @@ std::string serialize(valhalla::Api& api) {
   // OSRM is always using metric for non narrative stuff
   bool imperial = options.units() == Options::miles;
 
+  // 2D (by route, by leg) vector of every route and leg summarized. We cannot
+  // generate a route/leg summary in isolation, since this can lead to the same
+  // summary for different route/legs. We instead make each summary as simple
+  // as possible while also make sure they are unique.
+  std::vector<std::vector<std::string>> route_leg_summaries =
+      summarize_route_legs(api.directions().routes());
+
   // For each route...
   for (int i = 0; i < api.trip().routes_size(); ++i) {
     // Create a route to add to the array
@@ -1643,7 +1694,7 @@ std::string serialize(valhalla::Api& api) {
 
     if (options.action() == Options::trace_route) {
       // NOTE(mookerji): confidence value here is a placeholder for future implementation.
-      route->emplace("confidence", json::fp_t{1, 1});
+      route->emplace("confidence", json::fixed_t{1, 1});
     }
     // Add linear references, if applicable
     route_references(route, api.trip().routes(i), options);
@@ -1655,7 +1706,7 @@ std::string serialize(valhalla::Api& api) {
     route_summary(route, api, imperial, i);
 
     // Serialize route legs
-    route->emplace("legs", serialize_legs(api.directions().routes(i).legs(),
+    route->emplace("legs", serialize_legs(api.directions().routes(i).legs(), route_leg_summaries[i],
                                           *api.mutable_trip()->mutable_routes(i)->mutable_legs(),
                                           imperial, options));
 
@@ -1715,10 +1766,12 @@ TEST(RouteSerializerOsrm, testserializeIncidents) {
     meta.set_sub_type_description("foobar");
     meta.set_road_closed(true);
     meta.set_num_lanes_blocked(2);
+    meta.set_length(1337);
     meta.set_clear_lanes("many lanes clear");
     meta.mutable_congestion()->set_value(33);
     meta.add_alertc_codes(11);
     meta.set_iso_3166_1_alpha2("AU");
+    meta.set_iso_3166_1_alpha3("AUS");
     *incident->mutable_metadata() = meta;
 
     // Finally call the function under test to serialize to json
@@ -1738,6 +1791,7 @@ TEST(RouteSerializerOsrm, testserializeIncidents) {
           "id": "18446744073709551615",
           "type": "weather",
           "iso_3166_1_alpha2": "AU",
+          "iso_3166_1_alpha3": "AUS",
           "creation_time": "2020-08-12T14:17:09Z",
           "start_time": "2020-08-12T14:18:49Z",
           "end_time": "2020-08-12T14:47:09Z",
@@ -1750,6 +1804,7 @@ TEST(RouteSerializerOsrm, testserializeIncidents) {
           "lanes_blocked": [],
           "num_lanes_blocked": 2,
           "clear_lanes": "many lanes clear",
+          "length": 1337,
           "closed": true,
           "congestion": {
             "value": 33
@@ -1789,6 +1844,7 @@ TEST(RouteSerializerOsrm, testserializeIncidentsMultipleIncidentsSingleEdge) {
       meta.set_creation_time(creation_time);
       meta.set_type(valhalla::IncidentsTile::Metadata::WEATHER);
       meta.set_iso_3166_1_alpha2("SE");
+      meta.set_iso_3166_1_alpha3("SWE");
       *incident->mutable_metadata() = meta;
     }
     {
@@ -1805,6 +1861,7 @@ TEST(RouteSerializerOsrm, testserializeIncidentsMultipleIncidentsSingleEdge) {
       meta.set_end_time(creation_time + 1800);
       meta.set_type(valhalla::IncidentsTile::Metadata::ACCIDENT);
       meta.set_iso_3166_1_alpha2("SE");
+      meta.set_iso_3166_1_alpha3("SWE");
       *incident->mutable_metadata() = meta;
     }
 
@@ -1827,6 +1884,7 @@ TEST(RouteSerializerOsrm, testserializeIncidentsMultipleIncidentsSingleEdge) {
           "creation_time": "2020-08-12T14:17:09Z",
           "type": "weather",
           "iso_3166_1_alpha2": "SE",
+          "iso_3166_1_alpha3": "SWE",
           "lanes_blocked": [],
           "geometry_index_start": 87,
           "geometry_index_end": 92
@@ -1838,6 +1896,7 @@ TEST(RouteSerializerOsrm, testserializeIncidentsMultipleIncidentsSingleEdge) {
           "end_time": "2020-08-12T14:46:40Z",
           "type": "accident",
           "iso_3166_1_alpha2": "SE",
+          "iso_3166_1_alpha3": "SWE",
           "lanes_blocked": [],
           "geometry_index_start": 21,
           "geometry_index_end": 104

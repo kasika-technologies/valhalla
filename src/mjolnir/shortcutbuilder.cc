@@ -73,8 +73,8 @@ bool EdgesMatch(const graph_tile_ptr& tile, const DirectedEdge* edge1, const Dir
   // Names must match
   // TODO - this allows matches in any order. Do we need to maintain order?
   // TODO - should allow near matches?
-  std::vector<std::string> edge1names = tile->GetNames(edge1->edgeinfo_offset());
-  std::vector<std::string> edge2names = tile->GetNames(edge2->edgeinfo_offset());
+  std::vector<std::string> edge1names = tile->GetNames(edge1);
+  std::vector<std::string> edge2names = tile->GetNames(edge2);
   if (edge1names.size() != edge2names.size()) {
     return false;
   }
@@ -115,7 +115,7 @@ GraphId GetOpposingEdge(const GraphId& node,
     if (directededge->endnode() == node && directededge->classification() == edge->classification() &&
         directededge->length() == edge->length() &&
         ((directededge->link() && edge->link()) || (directededge->use() == edge->use())) &&
-        wayid == tile->edgeinfo(directededge->edgeinfo_offset()).wayid()) {
+        wayid == tile->edgeinfo(directededge).wayid()) {
       return edgeid;
     }
   }
@@ -227,8 +227,8 @@ bool CanContract(GraphReader& reader,
     }*/
 
   // Get the opposing directed edges - these are the inbound edges to the node.
-  uint64_t wayid1 = tile->edgeinfo(edge1->edgeinfo_offset()).wayid();
-  uint64_t wayid2 = tile->edgeinfo(edge2->edgeinfo_offset()).wayid();
+  uint64_t wayid1 = tile->edgeinfo(edge1).wayid();
+  uint64_t wayid2 = tile->edgeinfo(edge2).wayid();
   GraphId oppedge1 = GetOpposingEdge(node, edge1, reader, wayid1);
   GraphId oppedge2 = GetOpposingEdge(node, edge2, reader, wayid2);
   const DirectedEdge* oppdiredge1 = reader.GetGraphTile(oppedge1)->directededge(oppedge1);
@@ -329,7 +329,7 @@ uint32_t ConnectEdges(GraphReader& reader,
   restrictions = directededge->restrictions();
 
   // Get the shape for this edge. Reverse if directed edge is not forward.
-  auto encoded = tile->edgeinfo(directededge->edgeinfo_offset()).encoded_shape();
+  auto encoded = tile->edgeinfo(directededge).encoded_shape();
   std::list<PointLL> edgeshape = valhalla::midgard::decode7<std::list<PointLL>>(encoded);
   if (!directededge->forward()) {
     std::reverse(edgeshape.begin(), edgeshape.end());
@@ -416,7 +416,7 @@ uint32_t AddShortcutEdges(GraphReader& reader,
       // Get the shape for this edge. If this initial directed edge is not
       // forward - reverse the shape so the edge info stored is forward for
       // the first added edge info
-      auto edgeinfo = tile->edgeinfo(directededge->edgeinfo_offset());
+      auto edgeinfo = tile->edgeinfo(directededge);
       std::list<PointLL> shape =
           valhalla::midgard::decode7<std::list<PointLL>>(edgeinfo.encoded_shape());
       if (!directededge->forward()) {
@@ -424,10 +424,11 @@ uint32_t AddShortcutEdges(GraphReader& reader,
       }
 
       // Get names - they apply over all edges of the shortcut
-      auto names = tile->GetNames(directededge->edgeinfo_offset());
-      auto tagged_names = tile->GetNames(directededge->edgeinfo_offset(), true);
+      auto names = edgeinfo.GetNames();
+      auto tagged_values = edgeinfo.GetTaggedValues();
+      auto pronunciations = edgeinfo.GetTaggedValues(true);
 
-      auto types = tile->GetTypes(directededge->edgeinfo_offset());
+      auto types = edgeinfo.GetTypes();
 
       // Add any access restriction records. TODO - make sure we don't contract
       // across edges with different restrictions.
@@ -464,7 +465,7 @@ uint32_t AddShortcutEdges(GraphReader& reader,
           // direction from the node).
           const DirectedEdge* de = tile->directededge(next_edge_id);
           LOG_ERROR("Edge not found in edge pairs. WayID = " +
-                    std::to_string(tile->edgeinfo(de->edgeinfo_offset()).wayid()));
+                    std::to_string(tile->edgeinfo(de).wayid()));
           break;
         }
 
@@ -491,8 +492,9 @@ uint32_t AddShortcutEdges(GraphReader& reader,
       uint32_t idx = ((length & 0xfffff) | ((shape.size() & 0xfff) << 20));
       uint32_t edge_info_offset =
           tilebuilder.AddEdgeInfo(idx, start_node, end_node, 0, 0, edgeinfo.bike_network(),
-                                  edgeinfo.speed_limit(), shape, names, tagged_names, types, forward,
-                                  diff_names);
+                                  edgeinfo.speed_limit(), shape, names, tagged_values, pronunciations,
+                                  types, forward, diff_names);
+
       newedge.set_edgeinfo_offset(edge_info_offset);
 
       // Set the forward flag on this directed edge. If a new edge was added
@@ -677,15 +679,14 @@ uint32_t FormShortcuts(GraphReader& reader, const TileLevel& level) {
         // to the new. Use prior edgeinfo offset as the key to make sure
         // edges that have the same end nodes are differentiated (this
         // should be a valid key since tile sizes aren't changed)
-        auto edgeinfo = tile->edgeinfo(directededge->edgeinfo_offset());
+        auto edgeinfo = tile->edgeinfo(directededge);
         uint32_t edge_info_offset =
             tilebuilder.AddEdgeInfo(directededge->edgeinfo_offset(), node_id, directededge->endnode(),
                                     edgeinfo.wayid(), edgeinfo.mean_elevation(),
                                     edgeinfo.bike_network(), edgeinfo.speed_limit(),
-                                    edgeinfo.encoded_shape(),
-                                    tile->GetNames(directededge->edgeinfo_offset()),
-                                    tile->GetNames(directededge->edgeinfo_offset(), true),
-                                    tile->GetTypes(directededge->edgeinfo_offset()), added);
+                                    edgeinfo.encoded_shape(), edgeinfo.GetNames(),
+                                    edgeinfo.GetTaggedValues(), edgeinfo.GetTaggedValues(true),
+                                    edgeinfo.GetTypes(), added);
         newedge.set_edgeinfo_offset(edge_info_offset);
 
         // Set the superseded mask - this is the shortcut mask that supersedes this edge

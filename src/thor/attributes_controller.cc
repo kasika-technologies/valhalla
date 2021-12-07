@@ -66,6 +66,8 @@ const std::unordered_map<std::string, bool> AttributesController::kDefaultAttrib
     {kEdgeLaneConnectivity, true},
     {kEdgeCycleLane, true},
     {kEdgeBicycleNetwork, true},
+    {kEdgeSacScale, true},
+    {kEdgeShoulder, true},
     {kEdgeSidewalk, true},
     {kEdgeDensity, true},
     {kEdgeSpeedLimit, true},
@@ -74,7 +76,7 @@ const std::unordered_map<std::string, bool> AttributesController::kDefaultAttrib
     {kEdgeDefaultSpeed, true},
     {kEdgeDestinationOnly, true},
     {kEdgeIsUrban, false},
-    {kEdgeTaggedNames, true},
+    {kEdgeTaggedValues, true},
 
     // Node keys
     {kIncidents, false},
@@ -86,6 +88,8 @@ const std::unordered_map<std::string, bool> AttributesController::kDefaultAttrib
     {kNodeIntersectingEdgeWalkability, true},
     {kNodeIntersectingEdgeUse, true},
     {kNodeIntersectingEdgeRoadClass, true},
+    {kNodeIntersectingEdgeLaneCount, true},
+    {kNodeIntersectingEdgeSignInfo, true},
     {kNodeElapsedTime, true},
     {kNodeAdminIndex, true},
     {kNodeType, true},
@@ -131,6 +135,7 @@ const std::unordered_map<std::string, bool> AttributesController::kDefaultAttrib
     {kShapeAttributesLength, false},
     {kShapeAttributesSpeed, false},
     {kShapeAttributesSpeedLimit, false},
+    {kShapeAttributesClosure, false},
 };
 
 AttributesController::AttributesController() {

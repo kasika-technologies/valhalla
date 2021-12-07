@@ -141,7 +141,7 @@ GeoPoint<PrecisionT>::ClosestPoint(const std::vector<GeoPoint>& pts,
                                    PrecisionT forward_dist_cutoff,
                                    PrecisionT reverse_dist_cutoff) const {
   // setup
-  if (pts.empty() || pivot_index < 0 || pivot_index > pts.size() - 1)
+  if (pts.empty() || pivot_index < 0 || pivot_index > static_cast<int>(pts.size()) - 1)
     return std::make_tuple(GeoPoint(), std::numeric_limits<PrecisionT>::max(), -1);
 
   int closest_segment = pivot_index;
@@ -289,11 +289,15 @@ PrecisionT GeoPoint<PrecisionT>::HeadingAtEndOfPolyline(const std::vector<GeoPoi
         GeoPoint ll(pt1->lng() + ((pt0->lng() - pt1->lng()) * pct),
                     pt1->lat() + ((pt0->lat() - pt1->lat()) * pct));
         return ll.Heading(pts[idx1]);
-      } else {
-        d += seglength;
-        pt1--;
-        pt0--;
       }
+
+      if (pt0 == pts.begin()) {
+        break;
+      }
+
+      d += seglength;
+      pt1--;
+      pt0--;
     }
   }
 

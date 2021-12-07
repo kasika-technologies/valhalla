@@ -21,6 +21,8 @@ namespace thor {
 constexpr uint32_t kBucketCount = 20000;
 constexpr size_t kInterruptIterationsInterval = 5000;
 
+enum class ExpansionType { forward = 0, reverse = 1, multimodal = 2 };
+
 /**
  * Pure virtual class defining the interface for PathAlgorithm - the algorithm
  * to create shortest path.
@@ -30,7 +32,10 @@ public:
   /**
    * Constructor
    */
-  PathAlgorithm() : interrupt(nullptr), has_ferry_(false), expansion_callback_() {
+  PathAlgorithm(uint32_t max_reserved_labels_count, bool clear_reserved_memory)
+      : interrupt(nullptr), has_ferry_(false), not_thru_pruning_(true), expansion_callback_(),
+        max_reserved_labels_count_(max_reserved_labels_count),
+        clear_reserved_memory_(clear_reserved_memory) {
   }
 
   PathAlgorithm(const PathAlgorithm&) = delete;
@@ -90,6 +95,32 @@ public:
   }
 
   /**
+   *
+   * There is a rare case where we may encounter only_restrictions with edges being
+   * marked as not_thru.  Basically the only way to get in this area is via one edge
+   * and all other edges are restricted, but this one edge is also marked as not_thru.
+   * Therefore, on the first pass the expansion stops as we cannot take the restricted
+   * turns and we cannot go into the not_thru region. On the 2nd pass, we now ignore
+   * not_thru flags and allow entry into the not_thru region due to the fact that
+   * not_thru_pruning_ is false.  See the gurka test not_thru_pruning_.
+   *
+   * Set the not_thru_pruning_
+   * @param pruning  set the not_thru_pruning_ to pruning value.
+   *                 only set on the second pass
+   */
+  void set_not_thru_pruning(const bool pruning) {
+    not_thru_pruning_ = pruning;
+  }
+
+  /**
+   * Get the not thru pruning
+   * @return  Returns not_thru_pruning_
+   */
+  bool not_thru_pruning() {
+    return not_thru_pruning_;
+  }
+
+  /**
    * Sets the functor which will track the algorithms expansion.
    *
    * @param  expansion_callback  the functor to call back when the algorithm makes progress
@@ -106,11 +137,18 @@ protected:
 
   bool has_ferry_; // Indicates whether the path has a ferry
 
+  bool not_thru_pruning_; // Indicates whether to allow access into a not-thru region.
+
   // for tracking the expansion of the algorithm visually
   expansion_callback_t expansion_callback_;
 
   // when doing timezone differencing a timezone cache speeds up the computation
   baldr::DateTime::tz_sys_info_cache_t tz_cache_;
+
+  uint32_t max_reserved_labels_count_;
+
+  // if `true` clean reserved memory for edge labels
+  bool clear_reserved_memory_;
 
   /**
    * Check for path completion along the same edge. Edge ID in question

@@ -2,26 +2,10 @@ syntax = "proto2";
 option optimize_for = LITE_RUNTIME;
 package valhalla;
 import public "tripcommon.proto";
+import public "sign.proto";
 import "incidents.proto";
 
 message TripLeg {
-
-  message SignElement {
-    optional string text = 1;               // The actual sign element text, examples: I 95 North or Derry Street
-    optional bool is_route_number = 2;      // true if sign element is a reference route number such as: I 81 South or US 322 West
-  }
-
-  message Sign {
-    repeated SignElement exit_numbers = 1;            // The list of exit numbers, example: 67B
-    repeated SignElement exit_onto_streets = 2;       // The list of exit branch street names, examples: I 95 North or Baltimore-Washington Parkway
-    repeated SignElement exit_toward_locations = 3;   // The list of exit toward locations, examples: New York or I 395 South
-    repeated SignElement exit_names = 4;              // The list of exit names - not used much in US, example: Gettysburg Pike
-    repeated SignElement guide_onto_streets = 5;      // The list of guide branch street names, examples: US 22 West or Baltimore-Washington Parkway
-    repeated SignElement guide_toward_locations = 6;  // The list of guide toward locations, examples: Lewistown or US 15
-    repeated SignElement junction_names = 7;          // The list of junction names, examples: 万年橋東 or Mannenbashi East
-    repeated SignElement guidance_view_junctions = 8; // The list of guidance view junctions, examples: AB12345;1 or AB12345;E
-    repeated SignElement guidance_view_signboards = 9; // The list of guidance view signboards, examples: SI_721701166;1 or SI_721701166;2
-  }
 
   enum Traversability {
     kNone = 0;
@@ -57,6 +41,7 @@ message TripLeg {
     kPathUse = 27;
     kPedestrianUse = 28;
     kBridlewayUse = 29;
+    kPedestrianCrossingUse = 32;
 
     //Rest/Service Areas
     kRestAreaUse = 30;
@@ -144,21 +129,21 @@ message TripLeg {
     optional string operator_url = 12;
   }
 
-  message BikeShareStationInfo {
-    optional string name = 1;
-    optional string ref = 2;
-    optional string capacity = 3;
-    optional string network = 4;
-    optional string operator = 5;
-    optional float rent_cost = 6;
-    optional float return_cost = 7;
-  }
-
   enum CycleLane {
     kNoCycleLane = 0;
     kShared = 1;    // Shared use lane (could be shared with pedestrians)
     kDedicated = 2; // Dedicated cycle lane
     kSeparated = 3; // A separate cycle lane (physical separation from the main carriageway
+  }
+
+  enum SacScale {
+    kNoSacScale = 0;
+    kHiking = 1;
+    kMountainHiking = 2;
+    kDemandingMountainHiking = 3;
+    kAlpineHiking = 4;
+    kDemandingAlpineHiking = 5;
+    kDifficultAlpineHiking = 6;
   }
 
   enum Sidewalk {
@@ -205,7 +190,7 @@ message TripLeg {
     optional bool internal_intersection = 16;
     optional bool drive_on_right = 17;
     optional Surface surface = 18;
-    optional Sign sign = 19;
+    optional TripSign sign = 19;
     optional TravelMode travel_mode = 20;
     optional VehicleType vehicle_type = 21;
     optional PedestrianType pedestrian_type = 22;
@@ -234,12 +219,15 @@ message TripLeg {
     optional Restriction restriction = 45;
     optional bool destination_only = 46;
     optional bool is_urban = 47; // uses edge density to decide if edge is in an urban area
-    repeated TaggedName tagged_name = 48;
+    repeated TaggedValue tagged_value = 48;
 
     // for the part of the edge that is used in the path we must know where
     // it starts and ends along the length of the edge as a percentage
     optional float source_along_edge = 49;
     optional float target_along_edge = 50;
+
+    optional SacScale sac_scale = 51;
+    optional bool shoulder = 52;
   }
 
   message IntersectingEdge {
@@ -251,6 +239,8 @@ message TripLeg {
     optional Traversability walkability = 6;
     optional Use use = 7;
     optional RoadClass road_class = 8;
+    optional uint32 lane_count = 9;
+    optional TripSign sign = 10;
   }
 
   message Cost {
@@ -319,6 +309,11 @@ message TripLeg {
     optional uint32 end_shape_index = 4;
   };
 
+  message Closure {
+    optional uint32 begin_shape_index = 1;
+    optional uint32 end_shape_index = 2;
+  };
+
   optional uint64 osm_changeset = 1;
   optional uint64 trip_id = 2;
   optional uint32 leg_id = 3;
@@ -331,6 +326,7 @@ message TripLeg {
   optional ShapeAttributes shape_attributes = 10;
   repeated Incident incidents = 11;
   repeated string algorithms = 12;
+  repeated Closure closures = 13;
 }
 
 message TripRoute {

@@ -92,14 +92,16 @@ void CountryAccess(const std::string& config_file) {
   std::string nodes_file = "test_nodes_amsterdam.bin";
   std::string edges_file = "test_edges_amsterdam.bin";
   std::string access_file = "test_access_amsterdam.bin";
+  std::string pronunciation_file = "test_pronunciation_amsterdam.bin";
   std::string cr_from_file = "test_from_cr_amsterdam.bin";
   std::string cr_to_file = "test_to_cr_amsterdam.bin";
   std::string bss_nodes_file = "test_bss_nodes_amsterdam.bin";
 
   // Parse Amsterdam OSM data
-  auto osmdata = PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
-                                           {VALHALLA_SOURCE_DIR "test/data/amsterdam.osm.pbf"},
-                                           ways_file, way_nodes_file, access_file);
+  auto osmdata =
+      PBFGraphParser::ParseWays(conf.get_child("mjolnir"),
+                                {VALHALLA_SOURCE_DIR "test/data/amsterdam.osm.pbf"}, ways_file,
+                                way_nodes_file, access_file, pronunciation_file);
 
   PBFGraphParser::ParseRelations(conf.get_child("mjolnir"),
                                  {VALHALLA_SOURCE_DIR "test/data/amsterdam.osm.pbf"}, cr_from_file,
@@ -115,7 +117,7 @@ void CountryAccess(const std::string& config_file) {
 
   // Build the graph using the OSMNodes and OSMWays from the parser
   GraphBuilder::Build(conf, osmdata, ways_file, way_nodes_file, nodes_file, edges_file, cr_from_file,
-                      cr_to_file, tiles);
+                      cr_to_file, pronunciation_file, tiles);
 
   // load a tile and test the default access.
   GraphId id(820099, 2, 0);
@@ -130,7 +132,7 @@ void CountryAccess(const std::string& config_file) {
     for (uint32_t j = 0; j < count; j++) {
       DirectedEdge& directededge = tilebuilder.directededge_builder(nodeinfo.edge_index() + j);
 
-      auto e_offset = tilebuilder.edgeinfo(directededge.edgeinfo_offset());
+      auto e_offset = tilebuilder.edgeinfo(&directededge);
 
       uint32_t forward = directededge.forwardaccess();
       uint32_t reverse = directededge.reverseaccess();
@@ -203,7 +205,7 @@ void CountryAccess(const std::string& config_file) {
     for (uint32_t j = 0; j < count; j++) {
       DirectedEdge& directededge = tilebuilder2.directededge_builder(nodeinfo.edge_index() + j);
 
-      auto e_offset = tilebuilder2.edgeinfo(directededge.edgeinfo_offset());
+      auto e_offset = tilebuilder2.edgeinfo(&directededge);
 
       uint32_t forward = directededge.forwardaccess();
       uint32_t reverse = directededge.reverseaccess();

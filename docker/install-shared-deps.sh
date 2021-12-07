@@ -14,7 +14,7 @@ if [ $(grep -Fc bionic /etc/lsb-release) -gt 0 ]; then
     boost_version="1.62"
 fi
 
-readonly primeserver_version=0.6.7
+readonly primeserver_version=0.7.0
 
 # Now, go through and install the build dependencies
 apt-get update --assume-yes
@@ -54,9 +54,8 @@ env DEBIAN_FRONTEND=noninteractive apt-get install --yes --quiet \
     pkg-config \
     prime-server${primeserver_version}-bin \
     protobuf-compiler \
-    python-all-dev \
     python3-all-dev \
-    python3-minimal \
+    python3-shapely \
     spatialite-bin \
     unzip \
     zlib1g-dev \

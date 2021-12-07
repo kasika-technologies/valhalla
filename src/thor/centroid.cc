@@ -17,7 +17,7 @@ valhalla::Location make_centroid(const valhalla::baldr::GraphId& edge_id,
   using namespace valhalla;
   valhalla::baldr::graph_tile_ptr tile;
   const auto* edge = reader.directededge(baldr::GraphId(edge_id), tile);
-  auto info = tile->edgeinfo(edge->edgeinfo_offset());
+  auto info = tile->edgeinfo(edge);
   const auto& shape = info.shape();
   auto length = midgard::length(shape);
   auto mid_point = midgard::resample_spherical_polyline(shape, length / 2.)[1];
@@ -225,8 +225,8 @@ Centroid::FormPaths(const ExpansionType& expansion_type,
       auto path_edge_id = expansion_type == ExpansionType::reverse
                               ? reader.GetOpposingEdgeId(label.edgeid(), tile)
                               : label.edgeid();
-      path.emplace_back(label.mode(), label.cost(), path_edge_id, 0, label.restriction_idx(),
-                        label.transition_cost());
+      path.emplace_back(label.mode(), label.cost(), path_edge_id, 0, label.path_distance(),
+                        label.restriction_idx(), label.transition_cost());
     }
 
     // reverse the path since we recovered it starting at the beginning

@@ -31,21 +31,25 @@ TimeDistanceMatrix::TimeDistanceMatrix()
     : mode_(TravelMode::kDrive), settled_count_(0), current_cost_threshold_(0) {
 }
 
+// Compute a cost threshold in seconds based on average speed for the travel mode.
+// Use a conservative speed estimate (in MPH) for each travel mode.
 float TimeDistanceMatrix::GetCostThreshold(const float max_matrix_distance) const {
-  float cost_threshold;
+  float average_speed_mph;
   switch (mode_) {
     case TravelMode::kBicycle:
-      cost_threshold = max_matrix_distance / kTimeDistCostThresholdBicycleDivisor;
+      average_speed_mph = 10.0f;
       break;
     case TravelMode::kPedestrian:
     case TravelMode::kPublicTransit:
-      cost_threshold = max_matrix_distance / kTimeDistCostThresholdPedestrianDivisor;
+      average_speed_mph = 2.0f;
       break;
     case TravelMode::kDrive:
     default:
-      cost_threshold = max_matrix_distance / kTimeDistCostThresholdAutoDivisor;
+      average_speed_mph = 35.0f;
   }
-  return cost_threshold;
+
+  // Convert max_matrix_distance to seconds based on the average speed
+  return max_matrix_distance / (average_speed_mph * kMPHtoMetersPerSec);
 }
 
 // Clear the temporary information generated during time + distance matrix
@@ -94,15 +98,19 @@ void TimeDistanceMatrix::ExpandForward(GraphReader& graphreader,
     // directed edge), if no access is allowed to this edge (based on costing
     // method), or if a complex restriction prevents this path.
     uint8_t restriction_idx = -1;
+    const bool is_dest = dest_edges_.find(edgeid) != dest_edges_.cend();
     if (es->set() == EdgeSet::kPermanent ||
-        !costing_->Allowed(directededge, pred, tile, edgeid, 0, 0, restriction_idx) ||
+        !costing_->Allowed(directededge, is_dest, pred, tile, edgeid, 0, 0, restriction_idx) ||
         costing_->Restricted(directededge, pred, edgelabels_, tile, edgeid, true)) {
       continue;
     }
 
     // Get cost and update distance
     auto transition_cost = costing_->TransitionCost(directededge, nodeinfo, pred);
-    Cost newcost = pred.cost() + costing_->EdgeCost(directededge, tile) + transition_cost;
+    uint8_t flow_sources;
+    Cost newcost = pred.cost() +
+                   costing_->EdgeCost(directededge, tile, TimeInfo::invalid(), flow_sources) +
+                   transition_cost;
     uint32_t distance = pred.path_distance() + directededge->length();
 
     // Check if edge is temporarily labeled and this path has less cost. If
@@ -121,7 +129,10 @@ void TimeDistanceMatrix::ExpandForward(GraphReader& graphreader,
     // Add to the adjacency list and edge labels.
     uint32_t idx = edgelabels_.size();
     edgelabels_.emplace_back(pred_idx, edgeid, directededge, newcost, newcost.cost, 0.0f, mode_,
-                             distance, transition_cost, restriction_idx);
+                             distance, transition_cost, restriction_idx,
+                             (pred.closure_pruning() || !costing_->IsClosed(directededge, tile)),
+                             static_cast<bool>(flow_sources & kDefaultFlowMask),
+                             costing_->TurnType(pred.opp_local_idx(), nodeinfo, directededge));
     *es = {EdgeSet::kTemporary, idx};
     adjacencylist_.add(idx);
   }
@@ -259,9 +270,16 @@ void TimeDistanceMatrix::ExpandReverse(GraphReader& graphreader,
     }
 
     // Get cost. Use the opposing edge for EdgeCost.
-    auto transition_cost = costing_->TransitionCostReverse(directededge->localedgeidx(), nodeinfo,
-                                                           opp_edge, opp_pred_edge);
-    Cost newcost = pred.cost() + costing_->EdgeCost(opp_edge, t2) + transition_cost;
+    uint8_t flow_sources;
+    Cost newcost = pred.cost() + costing_->EdgeCost(opp_edge, t2, TimeInfo::invalid(), flow_sources);
+
+    auto transition_cost =
+        costing_->TransitionCostReverse(directededge->localedgeidx(), nodeinfo, opp_edge,
+                                        opp_pred_edge,
+                                        static_cast<bool>(flow_sources & kDefaultFlowMask),
+                                        pred.internal_turn());
+    newcost += transition_cost;
+
     uint32_t distance = pred.path_distance() + directededge->length();
 
     // Check if edge is temporarily labeled and this path has less cost. If
@@ -280,7 +298,11 @@ void TimeDistanceMatrix::ExpandReverse(GraphReader& graphreader,
     // Add to the adjacency list and edge labels.
     uint32_t idx = edgelabels_.size();
     edgelabels_.emplace_back(pred_idx, edgeid, directededge, newcost, newcost.cost, 0.0f, mode_,
-                             distance, transition_cost, restriction_idx);
+                             distance, transition_cost, restriction_idx,
+                             (pred.closure_pruning() || !costing_->IsClosed(directededge, tile)),
+                             static_cast<bool>(flow_sources & kDefaultFlowMask),
+                             costing_->TurnType(directededge->localedgeidx(), nodeinfo, opp_edge,
+                                                opp_pred_edge));
     *es = {EdgeSet::kTemporary, idx};
     adjacencylist_.add(idx);
   }
@@ -439,7 +461,9 @@ void TimeDistanceMatrix::SetOriginOneToMany(GraphReader& graphreader,
 
     // Get cost. Use this as sortcost since A* is not used for time+distance
     // matrix computations. . Get distance along the remainder of this edge.
-    Cost cost = costing_->EdgeCost(directededge, tile) * (1.0f - edge.percent_along());
+    uint8_t flow_sources;
+    Cost cost = costing_->EdgeCost(directededge, tile, TimeInfo::invalid(), flow_sources) *
+                (1.0f - edge.percent_along());
     uint32_t d = static_cast<uint32_t>(directededge->length() * (1.0f - edge.percent_along()));
 
     // We need to penalize this location based on its score (distance in meters from input)
@@ -451,7 +475,8 @@ void TimeDistanceMatrix::SetOriginOneToMany(GraphReader& graphreader,
     // Set the predecessor edge index to invalid to indicate the origin
     // of the path. Set the origin flag
     EdgeLabel edge_label(kInvalidLabel, edgeid, directededge, cost, cost.cost, 0.0f, mode_, d, {},
-                         baldr::kInvalidRestriction);
+                         baldr::kInvalidRestriction, !costing_->IsClosed(directededge, tile),
+                         static_cast<bool>(flow_sources & kDefaultFlowMask), InternalTurn::kNoTurn);
     edge_label.set_origin();
     edgelabels_.push_back(std::move(edge_label));
     adjacencylist_.add(edgelabels_.size() - 1);
@@ -489,7 +514,9 @@ void TimeDistanceMatrix::SetOriginManyToOne(GraphReader& graphreader,
 
     // Get cost. Use this as sortcost since A* is not used for time
     // distance matrix computations. Get the distance along the edge.
-    Cost cost = costing_->EdgeCost(opp_dir_edge, endtile) * edge.percent_along();
+    uint8_t flow_sources;
+    Cost cost = costing_->EdgeCost(opp_dir_edge, endtile, TimeInfo::invalid(), flow_sources) *
+                edge.percent_along();
     uint32_t d = static_cast<uint32_t>(directededge->length() * edge.percent_along());
 
     // We need to penalize this location based on its score (distance in meters from input)
@@ -502,7 +529,8 @@ void TimeDistanceMatrix::SetOriginManyToOne(GraphReader& graphreader,
     // of the path. Set the origin flag.
     // TODO - restrictions?
     EdgeLabel edge_label(kInvalidLabel, opp_edge_id, opp_dir_edge, cost, cost.cost, 0.0f, mode_, d,
-                         {}, baldr::kInvalidRestriction);
+                         {}, baldr::kInvalidRestriction, !costing_->IsClosed(directededge, tile),
+                         static_cast<bool>(flow_sources & kDefaultFlowMask), InternalTurn::kNoTurn);
     edge_label.set_origin();
     edgelabels_.push_back(std::move(edge_label));
     adjacencylist_.add(edgelabels_.size() - 1);

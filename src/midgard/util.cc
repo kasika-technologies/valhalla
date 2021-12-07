@@ -25,10 +25,6 @@
 
 namespace {
 
-constexpr double RAD_PER_METER = 1.0 / 6378160.187;
-constexpr double RAD_PER_DEG = valhalla::midgard::kPiDouble / 180.0;
-constexpr double DEG_PER_RAD = 180.0 / valhalla::midgard::kPiDouble;
-
 std::vector<valhalla::midgard::PointLL>
 resample_at_1hz(const std::vector<valhalla::midgard::gps_segment_t>& segments) {
   std::vector<valhalla::midgard::PointLL> resampled;
@@ -136,11 +132,19 @@ float tangent_angle(size_t index,
                     const PointLL& point,
                     const std::vector<PointLL>& shape,
                     const float sample_distance,
-                    bool forward) {
+                    bool forward,
+                    size_t first_segment_index,
+                    size_t last_segment_index) {
+  assert(!shape.empty());
+  assert(index < shape.size());
+  first_segment_index = std::min(first_segment_index, index);
+  last_segment_index = std::min(std::max(last_segment_index, index), shape.size() - 1);
   // depending on if we are going forward or backward we choose a different increment
   auto increment = forward ? -1 : 1;
-  auto first_end = forward ? shape.cbegin() : shape.cend() - 1;
-  auto second_end = forward ? shape.cend() - 1 : shape.cbegin();
+  auto first_end =
+      forward ? (shape.cbegin() + first_segment_index) : (shape.cbegin() + last_segment_index);
+  auto second_end =
+      forward ? (shape.cbegin() + last_segment_index) : (shape.cbegin() + first_segment_index);
 
   // u and v will be points we move along the shape until we have enough distance between them or
   // run out of points
@@ -338,7 +342,6 @@ std::vector<PointLL> uniform_resample_spherical_polyline(const std::vector<Point
   // Compute sample distance that splits the polyline equally to create n vertices.
   // Divisor is n-1 since there is 1 more vertex than edge on the subdivided polyline.
   double sample_distance = length / (n - 1);
-  double d0 = sample_distance;
 
   // for each point
   std::vector<PointLL> resampled = {polyline.front()};
@@ -395,7 +398,7 @@ std::vector<PointLL> uniform_resample_spherical_polyline(const std::vector<Point
   if (resampled.size() != n) {
     LOG_ERROR("resampled polyline not expected size! n: " + std::to_string(n) +
               " actual: " + std::to_string(resampled.size()) + " length: " + std::to_string(length) +
-              " d: " + std::to_string(d0));
+              " d: " + std::to_string(sample_distance));
   }
   return resampled;
 }
@@ -458,6 +461,63 @@ resample_polyline(const std::vector<PointLL>& polyline, const float length, cons
 
   return resampled;
 }
+
+// Use the barycentric technique to test if the point p is inside the triangle formed by (a, b, c).
+// If p is along the triangle's nodes/edges, this is not considered contained.
+// Note to user: this is entirely done in 2-D; no effort is made to approximate earth curvature.
+template <typename coord_t>
+bool triangle_contains(const coord_t& a, const coord_t& b, const coord_t& c, const coord_t& p) {
+  double v0x = c.x() - a.x();
+  double v0y = c.y() - a.y();
+  double v1x = b.x() - a.x();
+  double v1y = b.y() - a.y();
+  double v2x = p.x() - a.x();
+  double v2y = p.y() - a.y();
+
+  double dot00 = v0x * v0x + v0y * v0y;
+  double dot01 = v0x * v1x + v0y * v1y;
+  double dot02 = v0x * v2x + v0y * v2y;
+  double dot11 = v1x * v1x + v1y * v1y;
+  double dot12 = v1x * v2x + v1y * v2y;
+
+  double denom = dot00 * dot11 - dot01 * dot01;
+
+  // Triangle with very small area, e.g., nearly a line.
+  // This seemingly very small tolerance is reasonable if you
+  // consider that these are deltas of squared deltas from lat/lon's
+  // that might be close. Derived empirically during the development
+  // of the non-intersecting douglas-peucker logic in ::Normalize.
+  if (std::fabs(denom) < 1e-20)
+    return false;
+
+  double u = (dot11 * dot02 - dot01 * dot12) / denom;
+  double v = (dot00 * dot12 - dot01 * dot02) / denom;
+
+  // if u & v are very close to 0 (or exactly 0), that means the input
+  // point p is (very nearly) the same as one of the triangle's vertices.
+  // For the algorithm I'm using, that's okay - so I'm adding a slight
+  // tolerance check here.
+
+  // Check if point is in triangle
+  return (u >= 1e-16) && (v >= 1e-16) && (u + v < 1);
+}
+
+template bool triangle_contains(const PointXY<float>& a,
+                                const PointXY<float>& b,
+                                const PointXY<float>& c,
+                                const PointXY<float>& p);
+template bool triangle_contains(const PointXY<double>& a,
+                                const PointXY<double>& b,
+                                const PointXY<double>& c,
+                                const PointXY<double>& p);
+template bool triangle_contains(const GeoPoint<float>& a,
+                                const GeoPoint<float>& b,
+                                const GeoPoint<float>& c,
+                                const GeoPoint<float>& p);
+template bool triangle_contains(const GeoPoint<double>& a,
+                                const GeoPoint<double>& b,
+                                const GeoPoint<double>& c,
+                                const GeoPoint<double>& p);
 
 // Return the intersection of two infinite lines if any
 template <class coord_t>
@@ -543,13 +603,14 @@ x_intercept<GeoPoint<double>>(const GeoPoint<double>&,
 
 template <class container_t>
 typename container_t::value_type::first_type polygon_area(const container_t& polygon) {
+  // Shoelace formula
   typename container_t::value_type::first_type area =
       polygon.back() == polygon.front() ? 0.
-                                        : (polygon.back().first + polygon.front().first) *
-                                              (polygon.back().second + polygon.front().second);
+                                        : (polygon.back().first * polygon.front().second -
+                                           polygon.back().second * polygon.front().first);
   for (auto p1 = polygon.cbegin(), p2 = std::next(polygon.cbegin()); p2 != polygon.cend();
        ++p1, ++p2) {
-    area += (p1->first + p2->first) * (p1->second + p2->second);
+    area += p1->first * p2->second - p1->second * p2->first;
   }
   return area * .5;
 }

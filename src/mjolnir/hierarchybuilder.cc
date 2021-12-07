@@ -162,7 +162,7 @@ void FormTilesInNewLevel(GraphReader& reader,
   // highway level is done first.
   reader.Clear();
   bool added = false;
-  uint8_t current_level;
+  uint8_t current_level = std::numeric_limits<uint8_t>::max();
   GraphId tile_id;
   std::hash<std::string> hasher;
   PointLL base_ll;
@@ -308,7 +308,6 @@ void FormTilesInNewLevel(GraphReader& reader,
       // Do we need to force adding edgeinfo (opposing edge could have diff names)?
       // If end node is in the same tile and there is no opposing edge with matching
       // edge_info_offset).
-      uint32_t idx = directededge->edgeinfo_offset();
       bool diff_names = directededge->endnode().tileid() == base_edge_id.tileid() &&
                         !OpposingEdgeInfoMatches(tile, directededge);
 
@@ -316,14 +315,16 @@ void FormTilesInNewLevel(GraphReader& reader,
       // new. Cannot use edge info offset since edges in arterial and
       // highway hierarchy can cross base tiles! Use a hash based on the
       // encoded shape plus way Id.
-      auto edgeinfo = tile->edgeinfo(idx);
+      auto edgeinfo = tile->edgeinfo(directededge);
       std::string encoded_shape = edgeinfo.encoded_shape();
       uint32_t w = hasher(encoded_shape + std::to_string(edgeinfo.wayid()));
       uint32_t edge_info_offset =
           tilebuilder->AddEdgeInfo(w, nodea, nodeb, edgeinfo.wayid(), edgeinfo.mean_elevation(),
                                    edgeinfo.bike_network(), edgeinfo.speed_limit(), encoded_shape,
-                                   tile->GetNames(idx), tile->GetNames(idx, true),
-                                   tile->GetTypes(idx), added, diff_names);
+                                   edgeinfo.GetNames(), edgeinfo.GetTaggedValues(),
+                                   edgeinfo.GetTaggedValues(true), edgeinfo.GetTypes(), added,
+                                   diff_names);
+
       newedge.set_edgeinfo_offset(edge_info_offset);
 
       // Add directed edge
@@ -339,10 +340,11 @@ void FormTilesInNewLevel(GraphReader& reader,
     } else if (current_level == 1) {
       AddUpwardTransition(new_nodes.highway_node, tilebuilder);
       AddDownwardTransition(new_nodes.local_node, tilebuilder);
-    }
-    if (current_level == 2) {
+    } else if (current_level == 2) {
       AddUpwardTransition(new_nodes.highway_node, tilebuilder);
       AddUpwardTransition(new_nodes.arterial_node, tilebuilder);
+    } else {
+      throw std::logic_error("current_level was never set");
     }
 
     // Set the node transition count and index

@@ -81,6 +81,15 @@ bool heading_filter(const Location& location, float angle) {
          location.heading_tolerance_;
 }
 
+bool layer_filter(const Location& location, int8_t layer) {
+  // no layer - we do not filter
+  if (!location.preferred_layer_) {
+    return false;
+  }
+
+  return *location.preferred_layer_ != layer;
+}
+
 PathLocation::SideOfStreet flip_side(const PathLocation::SideOfStreet side) {
   if (side != PathLocation::SideOfStreet::NONE) {
     return side == PathLocation::SideOfStreet::LEFT ? PathLocation::SideOfStreet::RIGHT
@@ -295,18 +304,21 @@ struct bin_handler_t {
         // get some info about this edge and the opposing
         GraphId id = tile->id();
         id.set_id(node->edge_index() + (edge - start_edge));
-        auto info = tile->edgeinfo(edge->edgeinfo_offset());
+        auto info = tile->edgeinfo(edge);
+
         // calculate the heading of the snapped point to the shape for use in heading filter
         size_t index = edge->forward() ? 0 : info.shape().size() - 2;
         float angle =
             tangent_angle(index, candidate.point, info.shape(),
                           GetOffsetForHeading(edge->classification(), edge->use()), edge->forward());
+        auto layer = info.layer();
         // do we want this edge
-        if (costing->Allowed(edge, tile)) {
+        if (costing->Allowed(edge, tile, kDisallowShortcut)) {
           auto reach = get_reach(id, edge);
           PathLocation::PathEdge
-              path_edge{id, 0, node_ll, distance, PathLocation::NONE, reach.outbound, reach.inbound};
-          if (heading_filter(location, angle)) {
+              path_edge{id,   0, node_ll, distance, PathLocation::NONE, reach.outbound, reach.inbound,
+                        angle};
+          if (heading_filter(location, angle) || layer_filter(location, layer)) {
             filtered.emplace_back(std::move(path_edge));
           } else if (correlated_edges.insert(path_edge.id).second) {
             correlated.edges.push_back(std::move(path_edge));
@@ -320,7 +332,8 @@ struct bin_handler_t {
         if (!other_edge)
           continue;
 
-        if (costing->Allowed(other_edge, other_tile)) {
+        if (costing->Allowed(other_edge, other_tile, kDisallowShortcut)) {
+          auto opp_angle = std::fmod(angle + 180.f, 360.f);
           auto reach = get_reach(other_id, other_edge);
           PathLocation::PathEdge path_edge{other_id,
                                            1,
@@ -328,9 +341,10 @@ struct bin_handler_t {
                                            distance,
                                            PathLocation::NONE,
                                            reach.outbound,
-                                           reach.inbound};
+                                           reach.inbound,
+                                           opp_angle};
           // angle is 180 degrees opposite direction of the one above
-          if (heading_filter(location, std::fmod(angle + 180.f, 360.f))) {
+          if (heading_filter(location, opp_angle) || layer_filter(location, layer)) {
             filtered.emplace_back(std::move(path_edge));
           } else if (correlated_edges.insert(path_edge.id).second) {
             correlated.edges.push_back(std::move(path_edge));
@@ -382,6 +396,7 @@ struct bin_handler_t {
           tangent_angle(candidate.index, candidate.point, candidate.edge_info->shape(),
                         GetOffsetForHeading(candidate.edge->classification(), candidate.edge->use()),
                         candidate.edge->forward());
+      auto layer = candidate.edge_info->layer();
       auto sq_tolerance = square(double(location.street_side_tolerance_));
       auto sq_max_distance = square(double(location.street_side_max_distance_));
       auto side =
@@ -394,9 +409,10 @@ struct bin_handler_t {
       auto reach = get_reach(candidate.edge_id, candidate.edge);
       PathLocation::PathEdge path_edge{candidate.edge_id, length_ratio, candidate.point,
                                        distance,          side,         reach.outbound,
-                                       reach.inbound};
+                                       reach.inbound,     angle};
       // correlate the edge we found
-      if (side_filter(path_edge, location, reader) || heading_filter(location, angle)) {
+      if (side_filter(path_edge, location, reader) || heading_filter(location, angle) ||
+          layer_filter(location, layer)) {
         filtered.push_back(std::move(path_edge));
       } else if (correlated_edges.insert(candidate.edge_id).second) {
         correlated.edges.push_back(std::move(path_edge));
@@ -406,14 +422,15 @@ struct bin_handler_t {
       graph_tile_ptr other_tile;
       auto opposing_edge_id = reader.GetOpposingEdgeId(candidate.edge_id, other_edge, other_tile);
 
-      if (other_edge && costing->Allowed(other_edge, other_tile)) {
-        auto reach = get_reach(opposing_edge_id, other_edge);
+      if (other_edge && costing->Allowed(other_edge, other_tile, kDisallowShortcut)) {
+        auto opp_angle = std::fmod(angle + 180.f, 360.f);
+        reach = get_reach(opposing_edge_id, other_edge);
         PathLocation::PathEdge other_path_edge{opposing_edge_id, 1 - length_ratio, candidate.point,
                                                distance,         flip_side(side),  reach.outbound,
-                                               reach.inbound};
+                                               reach.inbound,    opp_angle};
         // angle is 180 degrees opposite of the one above
-        if (side_filter(other_path_edge, location, reader) ||
-            heading_filter(location, std::fmod(angle + 180.f, 360.f))) {
+        if (side_filter(other_path_edge, location, reader) || heading_filter(location, opp_angle) ||
+            layer_filter(location, layer)) {
           filtered.push_back(std::move(other_path_edge));
         } else if (correlated_edges.insert(opposing_edge_id).second) {
           correlated.edges.push_back(std::move(other_path_edge));
@@ -471,7 +488,7 @@ struct bin_handler_t {
 
     const DirectedEdge* opp_edge = nullptr;
     if (reach.outbound > 0 && reach.inbound > 0 && (opp_edge = reader.GetOpposingEdge(edge, tile)) &&
-        costing->Allowed(opp_edge, tile)) {
+        costing->Allowed(opp_edge, tile, kDisallowShortcut)) {
       directed_reaches[opp_edge] = reach;
     }
     return reach;
@@ -491,11 +508,11 @@ struct bin_handler_t {
 
       // if this edge is filtered
       const auto* edge = tile->directededge(edge_id);
-      if (!costing->Allowed(edge, tile)) {
+      if (!costing->Allowed(edge, tile, kDisallowShortcut)) {
         // then we try its opposing edge
         edge_id = reader.GetOpposingEdgeId(edge_id, edge, tile);
         // but if we couldnt get it or its filtered too then we move on
-        if (!edge_id.Is_Valid() || !costing->Allowed(edge, tile))
+        if (!edge_id.Is_Valid() || !costing->Allowed(edge, tile, kDisallowShortcut))
           continue;
       }
 
@@ -527,7 +544,7 @@ struct bin_handler_t {
       // a trivial half plane test as maybe a single dot product and comparison?
 
       // get some shape of the edge
-      auto edge_info = std::make_shared<const EdgeInfo>(tile->edgeinfo(edge->edgeinfo_offset()));
+      auto edge_info = std::make_shared<const EdgeInfo>(tile->edgeinfo(edge));
       auto shape = edge_info->lazy_shape();
       PointLL v;
       if (!shape.empty()) {
@@ -575,7 +592,7 @@ struct bin_handler_t {
         GraphId opp_edgeid;
         // it's possible that it isnt reachable but the opposing is, switch to that if so
         if (!reachable && (opp_edgeid = reader.GetOpposingEdgeId(edge_id, opp_edge, opp_tile)) &&
-            costing->Allowed(opp_edge, opp_tile)) {
+            costing->Allowed(opp_edge, opp_tile, kDisallowShortcut)) {
           auto opp_reach = check_reachability(begin, end, opp_tile, opp_edge, opp_edgeid);
           if (opp_reach.outbound >= p_itr->location.min_outbound_reach_ &&
               opp_reach.inbound >= p_itr->location.min_inbound_reach_) {

@@ -27,8 +27,8 @@
 #include "thor/attributes_controller.h"
 #include "thor/bidirectional_astar.h"
 #include "thor/pathalgorithm.h"
-#include "thor/timedep.h"
 #include "thor/triplegbuilder.h"
+#include "thor/unidirectional_astar.h"
 #include "thor/worker.h"
 #include "tyr/actor.h"
 #include "tyr/serializers.h"
@@ -1018,7 +1018,7 @@ TEST(Astar, TestBacktrackComplexRestrictionForwardDetourAfterRestriction) {
     for (auto path_info : paths) {
       LOG_INFO("Got pathinfo " + std::to_string(path_info.edgeid.id()));
       auto directededge = tile->directededge(path_info.edgeid);
-      auto edgeinfo = tile->edgeinfo(directededge->edgeinfo_offset());
+      auto edgeinfo = tile->edgeinfo(directededge);
       auto names = edgeinfo.GetNames();
       walked_path.push_back(names.front());
     }
@@ -1384,7 +1384,8 @@ TEST(Astar, test_IsBridgingEdgeRestricted) {
     edge_nk = *std::get<1>(result);
     edge_nk.complex_restriction(true);
     edge_labels_fwd.emplace_back(kInvalidLabel, std::get<0>(result), std::get<2>(result), &edge_nk,
-                                 vs::Cost{}, vs::TravelMode::kDrive, vs::Cost{}, 0, false, false);
+                                 vs::Cost{}, vs::TravelMode::kDrive, vs::Cost{}, 0, false, false,
+                                 true, sif::InternalTurn::kNoTurn, false);
   }
   DirectedEdge edge_kh;
   {
@@ -1394,7 +1395,7 @@ TEST(Astar, test_IsBridgingEdgeRestricted) {
     edge_kh.complex_restriction(true);
     edge_labels_fwd.emplace_back(edge_labels_fwd.size() - 1, std::get<0>(result), std::get<2>(result),
                                  &edge_kh, vs::Cost{}, vs::TravelMode::kDrive, vs::Cost{}, 0, false,
-                                 false);
+                                 false, true, sif::InternalTurn::kNoTurn, false);
   }
   // Create our fwd_pred for the bridging check
   DirectedEdge edge_hi;
@@ -1404,7 +1405,8 @@ TEST(Astar, test_IsBridgingEdgeRestricted) {
   edge_hi.complex_restriction(true);
   vs::BDEdgeLabel fwd_pred(edge_labels_fwd.size() - 1, // Index to predecessor in edge_labels_fwd
                            std::get<0>(edge_hi_result), std::get<2>(edge_hi_result), &edge_hi,
-                           vs::Cost{}, 0.0, 0.0, vs::TravelMode::kDrive, vs::Cost{}, false, false);
+                           vs::Cost{}, 0.0, 0.0, vs::TravelMode::kDrive, vs::Cost{}, false, false,
+                           true, sif::InternalTurn::kNoTurn, false);
 
   DirectedEdge edge_il;
   {
@@ -1413,7 +1415,8 @@ TEST(Astar, test_IsBridgingEdgeRestricted) {
     edge_il = *std::get<1>(result);
     edge_il.complex_restriction(true);
     edge_labels_rev.emplace_back(kInvalidLabel, std::get<0>(result), std::get<2>(result), &edge_il,
-                                 vs::Cost{}, vs::TravelMode::kDrive, vs::Cost{}, 0, false, false);
+                                 vs::Cost{}, vs::TravelMode::kDrive, vs::Cost{}, 0, false, false,
+                                 true, sif::InternalTurn::kNoTurn, false);
   }
   // Create the rev_pred for the bridging check
   DirectedEdge edge_ih;
@@ -1421,8 +1424,8 @@ TEST(Astar, test_IsBridgingEdgeRestricted) {
   edge_ih.complex_restriction(true);
   vs::BDEdgeLabel rev_pred(edge_labels_rev.size() - 1, // Index to predecessor in edge_labels_rev
                            std::get<2>(edge_hi_result), std::get<0>(edge_hi_result), &edge_ih,
-                           vs::Cost{}, 0.0, 0.0, vs::TravelMode::kDrive, vs::Cost{}, false, false);
-
+                           vs::Cost{}, 0.0, 0.0, vs::TravelMode::kDrive, vs::Cost{}, false, false,
+                           true, sif::InternalTurn::kNoTurn, false);
   {
     // Test for forward search
     ASSERT_TRUE(vt::IsBridgingEdgeRestricted(*reader, edge_labels_fwd, edge_labels_rev, fwd_pred,
@@ -1636,7 +1639,13 @@ TEST(BiDiAstar, test_recost_path) {
   vt::BidirectionalAStar astar;
 
   // hack hierarchy limits to allow to go through the shortcut
-  mode_costing[int(travel_mode)]->RelaxHierarchyLimits(0.f, 0.f);
+  {
+    auto& hierarchy_limits =
+        mode_costing[int(travel_mode)]->GetHierarchyLimits(); // access mutable limits
+    for (auto& hierarchy : hierarchy_limits) {
+      hierarchy.Relax(0.f, 0.f);
+    }
+  }
   const auto path =
       astar.GetBestPath(pbf_locations[0], pbf_locations[1], graphreader, mode_costing, travel_mode)
           .front();
@@ -1669,6 +1678,39 @@ TEST(BiDiAstar, test_recost_path) {
     EXPECT_NEAR((path[i + 1].elapsed_cost - path[i].elapsed_cost - path[i + 1].transition_cost).secs,
                 get_edge_duration(std::get<0>(edge), std::get<1>(edge)), 0.1f);
   }
+}
+
+class BiAstarTest : public thor::BidirectionalAStar {
+public:
+  explicit BiAstarTest(const boost::property_tree::ptree& config = {}) : BidirectionalAStar(config) {
+  }
+
+  void Clear() {
+    BidirectionalAStar::Clear();
+    if (clear_reserved_memory_) {
+      EXPECT_EQ(edgelabels_forward_.capacity(), 0);
+      EXPECT_EQ(edgelabels_reverse_.capacity(), 0);
+    } else {
+      EXPECT_LE(edgelabels_forward_.capacity(), max_reserved_labels_count_);
+      EXPECT_LE(edgelabels_reverse_.capacity(), max_reserved_labels_count_);
+    }
+  }
+};
+
+TEST(BiDiAstar, test_clear_reserved_memory) {
+  boost::property_tree::ptree config;
+  config.put("clear_reserved_memory", true);
+
+  BiAstarTest astar(config);
+  astar.Clear();
+}
+
+TEST(BiDiAstar, test_max_reserved_labels_count) {
+  boost::property_tree::ptree config;
+  config.put("max_reserved_labels_count", 10);
+
+  BiAstarTest astar(config);
+  astar.Clear();
 }
 
 class AstarTestEnv : public ::testing::Environment {

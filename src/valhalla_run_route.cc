@@ -30,8 +30,8 @@
 #include "thor/bidirectional_astar.h"
 #include "thor/multimodal.h"
 #include "thor/route_matcher.h"
-#include "thor/timedep.h"
 #include "thor/triplegbuilder.h"
+#include "thor/unidirectional_astar.h"
 #include "worker.h"
 
 #include "proto/api.pb.h"
@@ -71,11 +71,13 @@ class PathStatistics {
   float trip_dist;
   float arc_dist;
   uint32_t manuevers;
+  double elapsed_cost_seconds;
+  double elapsed_cost_cost;
 
 public:
   PathStatistics(std::pair<float, float> p1, std::pair<float, float> p2)
       : origin(p1), destination(p2), success("false"), passes(0), runtime(), trip_time(), trip_dist(),
-        arc_dist(), manuevers() {
+        arc_dist(), manuevers(), elapsed_cost_seconds(0), elapsed_cost_cost(0) {
   }
 
   void setSuccess(std::string s) {
@@ -99,11 +101,18 @@ public:
   void setManuevers(uint32_t n) {
     manuevers = n;
   }
+  void setElapsedCostSeconds(double secs) {
+    elapsed_cost_seconds = secs;
+  }
+  void setElapsedCostCost(double cost) {
+    elapsed_cost_cost = cost;
+  }
   void log() {
-    valhalla::midgard::logging::Log((boost::format("%f,%f,%f,%f,%s,%d,%d,%d,%f,%f,%d") %
+    valhalla::midgard::logging::Log((boost::format("%f,%f,%f,%f,%s,%d,%d,%d,%f,%f,%d,%f,%f") %
                                      origin.first % origin.second % destination.first %
                                      destination.second % success % passes % runtime % trip_time %
-                                     trip_dist % arc_dist % manuevers)
+                                     trip_dist % arc_dist % manuevers % elapsed_cost_seconds %
+                                     elapsed_cost_cost)
                                         .str(),
                                     " [STATISTICS] ");
   }
@@ -122,7 +131,6 @@ const valhalla::TripLeg* PathTest(GraphReader& reader,
                                   PathStatistics& data,
                                   bool multi_run,
                                   uint32_t iterations,
-                                  bool using_astar,
                                   bool using_bd,
                                   bool match_test,
                                   const std::string& routetype,
@@ -145,8 +153,7 @@ const valhalla::TripLeg* PathTest(GraphReader& reader,
       LOG_INFO("Try again with relaxed hierarchy limits");
       cost->set_pass(1);
       pathalgorithm->Clear();
-      const float expansion_within_factor = (using_astar) ? 4.0f : 2.0f;
-      cost->RelaxHierarchyLimits(using_astar, expansion_within_factor);
+      cost->RelaxHierarchyLimits(using_bd);
       cost->set_allow_destination_only(true);
       paths = pathalgorithm->GetBestPath(origin, dest, reader, mode_costing, mode, request.options());
       data.incPasses();
@@ -170,8 +177,7 @@ const valhalla::TripLeg* PathTest(GraphReader& reader,
   AttributesController controller;
   auto& trip_path = *request.mutable_trip()->mutable_routes()->Add()->mutable_legs()->Add();
   TripLegBuilder::Build(request.options(), controller, reader, mode_costing, pathedges.begin(),
-                        pathedges.end(), origin, dest, std::list<valhalla::Location>{}, trip_path,
-                        {pathalgorithm->name()});
+                        pathedges.end(), origin, dest, trip_path, {pathalgorithm->name()});
   t2 = std::chrono::high_resolution_clock::now();
   msecs = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
   LOG_INFO("TripLegBuilder took " + std::to_string(msecs) + " ms");
@@ -244,8 +250,7 @@ const valhalla::TripLeg* PathTest(GraphReader& reader,
       valhalla::TripLeg trip_leg;
       const auto& pathedges = paths.front();
       TripLegBuilder::Build(request.options(), controller, reader, mode_costing, pathedges.begin(),
-                            pathedges.end(), origin, dest, std::list<valhalla::Location>{}, trip_leg,
-                            {pathalgorithm->name()});
+                            pathedges.end(), origin, dest, trip_leg, {pathalgorithm->name()});
       t2 = std::chrono::high_resolution_clock::now();
       total_trip_leg_builder_ms +=
           std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
@@ -358,12 +363,13 @@ valhalla::DirectionsLeg DirectionsTest(valhalla::Api& api,
                                        valhalla::Location& orig,
                                        valhalla::Location& dest,
                                        PathStatistics& data,
-                                       bool verbose_lanes) {
+                                       bool verbose_lanes,
+                                       valhalla::odin::MarkupFormatter& markup_formatter) {
   // TEMPORARY? Change to PathLocation...
   const PathLocation& origin = PathLocation::fromPBF(orig);
   const PathLocation& destination = PathLocation::fromPBF(dest);
 
-  DirectionsBuilder::Build(api);
+  DirectionsBuilder::Build(api, markup_formatter);
   const auto& trip_directions = api.directions().routes(0).legs(0);
   EnhancedTripLeg etl(*api.mutable_trip()->mutable_routes(0)->mutable_legs(0));
   std::string units = (api.options().units() == valhalla::Options::kilometers ? "km" : "mi");
@@ -416,6 +422,14 @@ valhalla::DirectionsLeg DirectionsTest(valhalla::Api& api,
                                             .str(),
                                         " [NARRATIVE] ");
       }
+    }
+
+    // Verbal succinct transition instruction
+    if (maneuver.has_verbal_succinct_transition_instruction()) {
+      valhalla::midgard::logging::Log((boost::format("   VERBAL_SUCCINCT: %s") %
+                                       maneuver.verbal_succinct_transition_instruction())
+                                          .str(),
+                                      " [NARRATIVE] ");
     }
 
     // Verbal transition alert instruction
@@ -502,6 +516,8 @@ valhalla::DirectionsLeg DirectionsTest(valhalla::Api& api,
   data.setTripTime(trip_directions.summary().time());
   data.setTripDist(trip_directions.summary().length());
   data.setManuevers(trip_directions.maneuver_size());
+  data.setElapsedCostSeconds(etl.node().rbegin()->cost().elapsed_cost().seconds());
+  data.setElapsedCostCost(etl.node().rbegin()->cost().elapsed_cost().cost());
 
   return trip_directions;
 }
@@ -651,11 +667,11 @@ int main(int argc, char* argv[]) {
   LOG_INFO("Location Processing took " + std::to_string(ms) + " ms");
 
   // Get the route
-  TimeDepForward astar;
-  BidirectionalAStar bd;
-  MultiModalPathAlgorithm mm;
-  TimeDepForward timedep_forward;
-  TimeDepReverse timedep_reverse;
+  BidirectionalAStar bd(pt.get_child("thor"));
+  MultiModalPathAlgorithm mm(pt.get_child("thor"));
+  TimeDepForward timedep_forward(pt.get_child("thor"));
+  TimeDepReverse timedep_reverse(pt.get_child("thor"));
+  MarkupFormatter markup_formatter(pt);
   for (uint32_t i = 0; i < n; i++) {
     // Set origin and destination for this segment
     valhalla::Location origin = options.locations(i);
@@ -686,21 +702,19 @@ int main(int argc, char* argv[]) {
           for (auto& edge2 : dest.path_edges()) {
             if (edge1.graph_id() == edge2.graph_id() ||
                 reader.AreEdgesConnected(GraphId(edge1.graph_id()), GraphId(edge2.graph_id()))) {
-              pathalgorithm = &astar;
+              pathalgorithm = &timedep_forward;
             }
           }
         }
       }
     }
-    bool using_astar = (pathalgorithm == &astar || pathalgorithm == &timedep_forward ||
-                        pathalgorithm == &timedep_reverse);
     bool using_bd = pathalgorithm == &bd;
 
     // Get the best path
     const valhalla::TripLeg* trip_path = nullptr;
     try {
       trip_path = PathTest(reader, origin, dest, pathalgorithm, mode_costing, mode, data, multi_run,
-                           iterations, using_astar, using_bd, match_test, routetype, request);
+                           iterations, using_bd, match_test, routetype, request);
     } catch (std::runtime_error& rte) { LOG_ERROR("trip_path not found"); }
 
     // If successful get directions
@@ -724,7 +738,8 @@ int main(int argc, char* argv[]) {
 
       // Try the the directions
       auto t1 = std::chrono::high_resolution_clock::now();
-      const auto& trip_directions = DirectionsTest(request, origin, dest, data, verbose_lanes);
+      const auto& trip_directions =
+          DirectionsTest(request, origin, dest, data, verbose_lanes, markup_formatter);
       auto t2 = std::chrono::high_resolution_clock::now();
       auto msecs = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
 

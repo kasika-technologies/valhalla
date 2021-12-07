@@ -37,6 +37,7 @@ public:
   }
 
   bool Allowed(const DirectedEdge* edge,
+               const bool /*is_dest*/,
                const EdgeLabel& pred,
                const graph_tile_ptr& /*tile*/,
                const GraphId& edgeid,
@@ -78,7 +79,8 @@ public:
 
   Cost EdgeCost(const DirectedEdge* edge,
                 const graph_tile_ptr& /*tile*/,
-                const uint32_t /*seconds*/) const override {
+                const baldr::TimeInfo& /*time_info*/,
+                uint8_t& /*flow_sources*/) const override {
     float sec = static_cast<float>(edge->length());
     return {sec / 10.0f, sec};
   }
@@ -92,7 +94,9 @@ public:
   Cost TransitionCostReverse(const uint32_t /*idx*/,
                              const NodeInfo* /*node*/,
                              const DirectedEdge* /*opp_edge*/,
-                             const DirectedEdge* /*opp_pred_edge*/) const override {
+                             const DirectedEdge* /*opp_pred_edge*/,
+                             const bool /*has_measured_speed*/,
+                             const InternalTurn /*internal_turn*/) const override {
     return {5.0f, 5.0f};
   }
 
@@ -124,10 +128,10 @@ cost_ptr_t CreateSimpleCost(const CostingOptions& options) {
 // may want to do this in loki. At this point in thor the costing method
 // has not yet been constructed.
 const std::unordered_map<std::string, float> kMaxDistances = {
-    {"auto", 43200.0f},      {"auto_shorter", 43200.0f}, {"bicycle", 7200.0f},
-    {"bus", 43200.0f},       {"hov", 43200.0f},          {"motor_scooter", 14400.0f},
-    {"multimodal", 7200.0f}, {"pedestrian", 7200.0f},    {"transit", 14400.0f},
-    {"truck", 43200.0f},     {"taxi", 43200.0f},
+    {"auto", 43200.0f},      {"auto_shorter", 43200.0f},  {"bicycle", 7200.0f},
+    {"bus", 43200.0f},       {"motor_scooter", 14400.0f}, {"multimodal", 7200.0f},
+    {"pedestrian", 7200.0f}, {"transit", 14400.0f},       {"truck", 43200.0f},
+    {"taxi", 43200.0f},
 };
 // a scale factor to apply to the score so that we bias towards closer results more
 constexpr float kDistanceScale = 10.f;
@@ -199,10 +203,10 @@ const auto test_request_osrm = R"({
     "costing":"auto"
   }&format=osrm)";
 
-std::vector<TimeDistance> matrix_answers = {{28, 28},     {2027, 1837}, {2390, 2209}, {4163, 3838},
-                                            {1519, 1398}, {1808, 1638}, {2042, 1937}, {3944, 3639},
-                                            {2298, 2107}, {687, 637},   {0, 0},       {2808, 2623},
-                                            {5552, 5177}, {3942, 3707}, {4344, 4104}, {1815, 1680}};
+std::vector<TimeDistance> matrix_answers = {{28, 28},     {2027, 1837}, {2403, 2213}, {4163, 3838},
+                                            {1519, 1398}, {1808, 1638}, {2061, 1951}, {3944, 3639},
+                                            {2311, 2111}, {701, 641},   {0, 0},       {2821, 2626},
+                                            {5562, 5177}, {3952, 3707}, {4367, 4107}, {1825, 1680}};
 } // namespace
 
 const uint32_t kThreshold = 1;

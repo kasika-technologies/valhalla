@@ -164,9 +164,11 @@ inline bool IsEdgeAllowed(const baldr::DirectedEdge* edge,
                           const Label& pred_edgelabel,
                           const graph_tile_ptr& tile,
                           uint8_t& restriction_idx) {
-  bool valid_pred = (!pred_edgelabel.edgeid().Is_Valid() && costing->Allowed(edge, tile)) ||
-                    edgeid == pred_edgelabel.edgeid();
-  bool restricted = !costing->Allowed(edge, pred_edgelabel, tile, edgeid, 0, 0, restriction_idx);
+  bool valid_pred =
+      (!pred_edgelabel.edgeid().Is_Valid() && costing->Allowed(edge, tile, sif::kDisallowShortcut)) ||
+      edgeid == pred_edgelabel.edgeid();
+  bool restricted =
+      !costing->Allowed(edge, false, pred_edgelabel, tile, edgeid, 0, 0, restriction_idx);
   return valid_pred || !restricted;
 }
 
@@ -274,7 +276,7 @@ inline uint16_t get_inbound_edgelabel_heading(baldr::GraphReader& reader,
     // Have to get the heading from the edge shape...
     graph_tile_ptr tile;
     const auto directededge = reader.directededge(label.edgeid(), tile);
-    const auto edgeinfo = tile->edgeinfo(directededge->edgeinfo_offset());
+    const auto edgeinfo = tile->edgeinfo(directededge);
     const auto& shape = edgeinfo.shape();
     if (shape.size() >= 2) {
       float heading = (directededge->forward()) ? shape.back().Heading(shape.rbegin()[1])
@@ -303,7 +305,7 @@ inline uint16_t get_outbound_edge_heading(const graph_tile_ptr& tile,
   if (idx < 8) {
     return nodeinfo->heading(idx);
   } else {
-    const auto edgeinfo = tile->edgeinfo(outbound_edge->edgeinfo_offset());
+    const auto edgeinfo = tile->edgeinfo(outbound_edge);
     const auto& shape = edgeinfo.shape();
     if (shape.size() >= 2) {
       float heading = (outbound_edge->forward()) ? shape.front().Heading(shape[1])
