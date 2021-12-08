@@ -10,9 +10,9 @@ message Contour {
 }
 
 enum ShapeMatch {
-  edge_walk = 0;
+  walk_or_snap = 0;
   map_snap = 1;
-  walk_or_snap = 2;
+  edge_walk = 2;
 }
 
 enum FilterAction {
