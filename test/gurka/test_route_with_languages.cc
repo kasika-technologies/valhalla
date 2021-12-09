@@ -1284,12 +1284,8 @@ gurka::map RouteWithStreetnameAndSign_cy_en_Wales::map = {};
 ///////////////////////////////////////////////////////////////////////////////
 TEST_F(RouteWithStreetnameAndSign_cy_en_Wales, CheckStreetNamesAndSigns1) {
   auto result = gurka::do_action(valhalla::Options::route, map, {"A", "D"}, "auto");
-  // TODO - put back in when data processing is fixed
-  //  gurka::assert::raw::expect_path(result, {"A55/Gwibffordd Gogledd Cymru/North Wales Expressway",
-  //  "",
-  //                                           "Caernarfon Road/Ffordd Caernarfon/A4087"});
   gurka::assert::raw::expect_path(result, {"A55/Gwibffordd Gogledd Cymru/North Wales Expressway", "",
-                                           "Ffordd Caernarfon/A4087"});
+                                           "Caernarfon Road/Ffordd Caernarfon/A4087"});
 
   // Verify starting on A55
   int maneuver_index = 0;
@@ -1362,35 +1358,33 @@ TEST_F(RouteWithStreetnameAndSign_cy_en_Wales, CheckStreetNamesAndSigns1) {
             LanguageTag::kUnspecified);
 
   // Verify street name language tag is en
-  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
   ++maneuver_index;
-  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
-  // TODO - put back in when data processing is fixed
-  //  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
-  //            "Caernarfon Road");
-  //  EXPECT_EQ(result.directions()
-  //                .routes(0)
-  //                .legs(0)
-  //                .maneuver(maneuver_index)
-  //                .street_name(0)
-  //                .language_tag(),
-  //            LanguageTag::kEn);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 3);
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
-            "Ffordd Caernarfon");
+            "Caernarfon Road");
   EXPECT_EQ(result.directions()
                 .routes(0)
                 .legs(0)
                 .maneuver(maneuver_index)
                 .street_name(0)
                 .language_tag(),
-            LanguageTag::kCy);
+            LanguageTag::kEn);
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
-            "A4087");
+            "Ffordd Caernarfon");
   EXPECT_EQ(result.directions()
                 .routes(0)
                 .legs(0)
                 .maneuver(maneuver_index)
                 .street_name(1)
+                .language_tag(),
+            LanguageTag::kCy);
+  EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(2).value(),
+            "A4087");
+  EXPECT_EQ(result.directions()
+                .routes(0)
+                .legs(0)
+                .maneuver(maneuver_index)
+                .street_name(2)
                 .language_tag(),
             LanguageTag::kUnspecified);
 }
