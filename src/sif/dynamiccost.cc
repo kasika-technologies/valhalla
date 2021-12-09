@@ -600,6 +600,8 @@ void ParseCostingOptions(const rapidjson::Document& doc,
       sif::ParseNoCostOptions(doc, key, costing_options);
       break;
     }
+    default:
+      throw std::logic_error("Invalid costing");
   }
   costing_options->set_costing(costing);
 }

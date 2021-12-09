@@ -1,12 +1,18 @@
-syntax = "proto2";
+syntax = "proto3";
 option optimize_for = LITE_RUNTIME;
 package valhalla;
 import public "tripcommon.proto";
 
 message Contour {
-  optional float time = 1;     // minutes
-  optional string color = 2;   // hex color with out # - for example: "ff0000" for red
-  optional float distance = 3; // kilometers
+  oneof optional_time {
+    float time = 1;     // minutes
+  }
+  oneof optional_color {
+    string color = 2;   // hex color with out # - for example: "ff0000" for red
+  }
+  oneof optional_distance {
+    float distance = 3; // kilometers
+  }
 }
 
 enum ShapeMatch {
@@ -16,8 +22,9 @@ enum ShapeMatch {
 }
 
 enum FilterAction {
-  exclude = 0;
-  include = 1;
+  no_action = 0;
+  exclude = 1;
+  include = 2;
 }
 
 enum DirectionsType {
@@ -33,112 +40,252 @@ enum ShapeFormat {
 }
 
 enum Costing {
-  auto_ = 0;
-  // deprecated auto_shorter = 1;
-  bicycle = 2;
-  bus = 3;
-  // deprecated hov = 4;
-  motor_scooter = 5;
-  multimodal = 6;
-  pedestrian = 7;
-  transit = 8;
-  truck = 9;
-  motorcycle = 10;
-  // deprecated auto_data_fix = 11;
-  taxi = 12;
-  none_ = 13;
+  none_ = 0;
+  auto_ = 1;
+  // deprecated auto_shorter = 2;
+  bicycle = 3;
+  bus = 4;
+  // deprecated hov = 5;
+  motor_scooter = 6;
+  multimodal = 7;
+  pedestrian = 8;
+  transit = 9;
+  truck = 10;
+  motorcycle = 11;
+  // deprecated auto_data_fix = 12;
+  taxi = 13;
   bikeshare = 14;
 }
 
 message AvoidEdge {
-  optional uint64 id = 1;
-  optional float percent_along = 2;
+  uint64 id = 1;
+  float percent_along = 2;
 }
 
 message CostingOptions {
-  optional float maneuver_penalty = 1;
-  optional float destination_only_penalty = 2;
-  optional float gate_cost = 3;
-  optional float gate_penalty = 4;
-  optional float toll_booth_cost = 5;
-  optional float toll_booth_penalty = 6;
-  optional float alley_penalty = 7;
-  optional float country_crossing_cost = 8;
-  optional float country_crossing_penalty = 9;
-  optional float ferry_cost = 10;
-  optional float avoid_bad_surfaces = 11;
-  optional float use_ferry = 12;
-  optional float use_highways = 13;
-  optional float use_tolls = 14;
-  optional float use_roads = 15;
-  optional uint32 max_distance = 16;
-  optional float walking_speed = 17;
-  optional float step_penalty = 18;
-  optional uint32 max_grade = 19;
-  optional uint32 max_hiking_difficulty = 20;
-  optional float mode_factor = 21;
-  optional float walkway_factor = 22;
-  optional float sidewalk_factor = 23;
-  optional float alley_factor = 24;
-  optional float driveway_factor = 25;
-  optional float driveway_penalty = 26;
-  optional uint32 transit_start_end_max_distance = 27;
-  optional uint32 transit_transfer_max_distance = 28;
-  optional string transport_type = 29;
-  optional float top_speed = 30;
-  optional float use_hills = 31;
-  optional float use_primary = 32;
-  optional float use_trails = 33;
-  optional float low_class_penalty = 34;
-  optional bool hazmat = 35;
-  optional float weight = 36;
-  optional float axle_load = 37;
-  optional float height = 38;
-  optional float width = 39;
-  optional float length = 40;
-  optional float cycling_speed = 41;
-  optional bool wheelchair = 42;
-  optional bool bicycle = 43;
-  optional float use_bus = 44;
-  optional float use_rail = 45;
-  optional float use_transfers = 46;
-  optional float transfer_cost = 47;
-  optional float transfer_penalty = 48;
-  optional FilterAction filter_stop_action = 49;
+  oneof optional_maneuver_penalty {
+    float maneuver_penalty = 1;
+  }
+  oneof optional_destination_only_penalty {
+    float destination_only_penalty = 2;
+  }
+  oneof optional_gate_cost {
+    float gate_cost = 3;
+  }
+  oneof optional_gate_penalty {
+    float gate_penalty = 4;
+  }
+  oneof optional_toll_booth_cost {
+    float toll_booth_cost = 5;
+  }
+  oneof optional_toll_booth_penalty {
+    float toll_booth_penalty = 6;
+  }
+  oneof optional_alley_penalty {
+    float alley_penalty = 7;
+  }
+  oneof optional_country_crossing_cost {
+    float country_crossing_cost = 8;
+  }
+  oneof optional_country_crossing_penalty {
+    float country_crossing_penalty = 9;
+  }
+  oneof optional_ferry_cost {
+    float ferry_cost = 10;
+  }
+  oneof optional_avoid_bad_surfaces {
+    float avoid_bad_surfaces = 11;
+  }
+  oneof optional_use_ferry {
+    float use_ferry = 12;
+  }
+  oneof optional_use_highways {
+    float use_highways = 13;
+  }
+  oneof optional_use_tolls {
+    float use_tolls = 14;
+  }
+  oneof optional_use_roads {
+    float use_roads = 15;
+  }
+  oneof optional_max_distance {
+    uint32 max_distance = 16;
+  }
+  oneof optional_walking_speed {
+    float walking_speed = 17;
+  }
+  oneof optional_step_penalty {
+    float step_penalty = 18;
+  }
+  oneof optional_max_grade {
+    uint32 max_grade = 19;
+  }
+  oneof optional_max_hiking_difficulty {
+    uint32 max_hiking_difficulty = 20;
+  }
+  oneof optional_mode_factor {
+    float mode_factor = 21;
+  }
+  oneof optional_walkway_factor {
+    float walkway_factor = 22;
+  }
+  oneof optional_sidewalk_factor {
+    float sidewalk_factor = 23;
+  }
+  oneof optional_alley_factor {
+    float alley_factor = 24;
+  }
+  oneof optional_driveway_factor {
+    float driveway_factor = 25;
+  }
+  oneof optional_driveway_penalty {
+    float driveway_penalty = 26;
+  }
+  oneof optional_transit_start_end_max_distance {
+    uint32 transit_start_end_max_distance = 27;
+  }
+  oneof optional_transit_transfer_max_distance {
+    uint32 transit_transfer_max_distance = 28;
+  }
+  string transport_type = 29;
+  oneof optional_top_speed {
+    float top_speed = 30;
+  }
+  oneof optional_use_hills {
+    float use_hills = 31;
+  }
+  oneof optional_use_primary {
+    float use_primary = 32;
+  }
+  oneof optional_use_trails {
+    float use_trails = 33;
+  }
+  oneof optional_low_class_penalty {
+    float low_class_penalty = 34;
+  }
+  oneof optional_hazmat {
+    bool hazmat = 35;
+  }
+  oneof optional_weight {
+    float weight = 36;
+  }
+  oneof optional_axle_load {
+    float axle_load = 37;
+  }
+  oneof optional_height {
+    float height = 38;
+  }
+  oneof optional_width {
+    float width = 39;
+  }
+  oneof optional_length {
+    float length = 40;
+  }
+  oneof optional_cycling_speed {
+    float cycling_speed = 41;
+  }
+  oneof optional_wheelchair {
+    bool wheelchair = 42;
+  }
+  oneof optional_bicycle {
+    bool bicycle = 43;
+  }
+  oneof optional_use_bus {
+    float use_bus = 44;
+  }
+  oneof optional_use_rail {
+    float use_rail = 45;
+  }
+  oneof optional_use_transfers {
+    float use_transfers = 46;
+  }
+  oneof optional_transfer_cost {
+    float transfer_cost = 47;
+  }
+  oneof optional_transfer_penalty {
+    float transfer_penalty = 48;
+  }
+  FilterAction filter_stop_action = 49;
   repeated string filter_stop_ids = 50;
-  optional FilterAction filter_operator_action = 51;
+  FilterAction filter_operator_action = 51;
   repeated string filter_operator_ids = 52;
-  optional FilterAction filter_route_action = 53;
+  FilterAction filter_route_action = 53;
   repeated string filter_route_ids = 54;
-  optional uint32 flow_mask = 55;
-  optional float bike_share_cost = 56;
-  optional float bike_share_penalty = 57;
-  optional float rail_ferry_cost = 58;
-  optional float use_rail_ferry = 59;
-  optional bool ignore_restrictions = 60;
-  optional bool ignore_oneways = 61;
-  optional bool ignore_access = 62;
-  optional bool ignore_closures = 63;
-  optional bool shortest = 64;
-  optional float service_penalty = 65;
-  optional float use_tracks = 66;
-  optional float use_distance = 67;
-  optional float use_living_streets = 68;
-  optional float service_factor = 69;
-  optional float closure_factor = 70;
-  optional float private_access_penalty = 71;
-  optional bool exclude_unpaved = 72;
-  optional bool include_hot = 73;
-  optional bool include_hov2 = 74;
-  optional bool include_hov3 = 75;
-  optional bool exclude_cash_only_tolls = 76;
-  optional uint32 restriction_probability = 77;
+  oneof optional_flow_mask {
+    uint32 flow_mask = 55;
+  }
+  oneof optional_bike_share_cost {
+    float bike_share_cost = 56;
+  }
+  oneof optional_bike_share_penalty {
+    float bike_share_penalty = 57;
+  }
+  oneof optional_rail_ferry_cost {
+    float rail_ferry_cost = 58;
+  }
+  oneof optional_use_rail_ferry {
+    float use_rail_ferry = 59;
+  }
+  oneof optional_ignore_restrictions {
+    bool ignore_restrictions = 60;
+  }
+  oneof optional_ignore_oneways {
+    bool ignore_oneways = 61;
+  }
+  oneof optional_ignore_access {
+    bool ignore_access = 62;
+  }
+  oneof optional_ignore_closures {
+    bool ignore_closures = 63;
+  }
+  oneof optional_shortest {
+    bool shortest = 64;
+  }
+  oneof optional_service_penalty {
+    float service_penalty = 65;
+  }
+  oneof optional_use_tracks {
+    float use_tracks = 66;
+  }
+  oneof optional_use_distance {
+    float use_distance = 67;
+  }
+  oneof optional_use_living_streets {
+    float use_living_streets = 68;
+  }
+  oneof optional_service_factor {
+    float service_factor = 69;
+  }
+  oneof optional_closure_factor {
+    float closure_factor = 70;
+  }
+  oneof optional_private_access_penalty {
+    float private_access_penalty = 71;
+  }
+  oneof optional_exclude_unpaved {
+    bool exclude_unpaved = 72;
+  }
+  oneof optional_include_hot {
+    bool include_hot = 73;
+  }
+  oneof optional_include_hov2 {
+    bool include_hov2 = 74;
+  }
+  oneof optional_include_hov3 {
+    bool include_hov3 = 75;
+  }
+  oneof optional_exclude_cash_only_tolls {
+    bool exclude_cash_only_tolls = 76;
+  }
+  oneof optional_restriction_probability {
+    uint32 restriction_probability = 77;
+  }
 
   // these are not specified directly by the user but they get filled in as the request is parsed and fulfilled
-  optional Costing costing = 90;
-  optional string name = 91;
+  Costing costing = 90;
+  string name = 91;
   repeated AvoidEdge exclude_edges = 92;  // Exclude edges for any costing - derived from exclude_locations
-  optional bool filter_closures = 93;     // Will default to true
+  bool filter_closures = 93;     // Will default to true
 }
 
 message Options {
@@ -155,6 +302,7 @@ message Options {
   }
 
   enum Action {
+    none = 0;
     route = 1;
     locate = 2;
     sources_to_targets = 3;
@@ -180,52 +328,64 @@ message Options {
     repeated LatLng coords = 1;
   }
 
-  optional Units units = 1;                                               // kilometers or miles
-  optional string language = 2;                                           // Based on IETF BCP 47 language tag string
-  optional DirectionsType directions_type = 3;                            // Enable/disable narrative production
-  optional Format format = 4;                                             // What the response format should be
-  optional string id = 5;                                                 // Optional id for the request
-  optional string jsonp = 6;                                              // Optional javascript callback for the request
-  optional string encoded_polyline = 7;                                   // Optional polyline 6 encoded shape used in /height /trace_*
-  optional Action action = 8;                                             // Action signifying the request type
+  Units units = 1;                                               // kilometers or miles
+  string language = 2;                                           // Based on IETF BCP 47 language tag string
+  DirectionsType directions_type = 3;                            // Enable/disable narrative production
+  Format format = 4;                                             // What the response format should be
+  string id = 5;                                                 // Optional id for the request
+  string jsonp = 6;                                              // Optional javascript callback for the request
+  string encoded_polyline = 7;                                   // Optional polyline 6 encoded shape used in /height /trace_*
+  Action action = 8;                                             // Action signifying the request type
   //deprecated = 9;
-  optional bool range = 10;                                               // Used in /height if the range between points should be serialized
-  optional bool verbose = 11;                                             // Used in /locate request to give back extensive information
-  optional Costing costing = 12;                                          // Used to tell what type of costing to use
+  bool range = 10;                                               // Used in /height if the range between points should be serialized
+  bool verbose = 11;                                             // Used in /locate request to give back extensive information
+  Costing costing = 12;                                          // Used to tell what type of costing to use
   repeated CostingOptions costing_options = 13;                           // A list of costing options for each costing model
   repeated Location locations = 14;                                       // Locations for /route /optimized /locate /isochrone
   repeated Location exclude_locations = 15;                               // Avoids for any costing
   repeated Location sources = 16;                                         // Sources for /sources_to_targets
   repeated Location targets = 17;                                         // Targets for /sources_to_targets
-  optional DateTimeType date_time_type = 18;                              // Are you leaving now or then or arriving then
-  optional string date_time = 19;                                         // And what day and time
+  oneof optional_date_time_type {
+    DateTimeType date_time_type = 18;                              // Are you leaving now or then or arriving then
+  }
+  string date_time = 19;                                         // And what day and time
   repeated Location shape = 20;                                           // Raw shape for map matching
-  optional double resample_distance = 21;                                 // Resampling shape at regular intervals
+  double resample_distance = 21;                                 // Resampling shape at regular intervals
   repeated Contour contours = 22;                                         // List of isochrone contours
-  optional bool polygons = 23;                                            // Boolean value to determine whether to return geojson polygons or linestrings as the contours
-  optional float denoise = 24;                                            // A floating point value from 0 to 1 which can be used to remove smaller contours
-  optional float generalize = 25;                                         // Meters used as the tolerance for Douglas-Peucker generalization
-  optional bool show_locations = 26;                                      // Add original locations to the isochrone geojson response
+  bool polygons = 23;                                            // Boolean value to determine whether to return geojson polygons or linestrings as the contours
+  float denoise = 24;                                            // A floating point value from 0 to 1 which can be used to remove smaller contours
+  float generalize = 25;                                         // Meters used as the tolerance for Douglas-Peucker generalization
+  bool show_locations = 26;                                      // Add original locations to the isochrone geojson response
   repeated Location trace = 27;                                           // Trace points for map matching
-  optional ShapeMatch shape_match = 28;                                   // The matching algorithm based on the type of input
-  optional uint32 best_paths = 29;                                        // The number of top k paths
-  optional float gps_accuracy = 30;                                       // The gps accuracy associated with the supplied trace points
-  optional float search_radius = 31;                                      // The search radius associated with the supplied trace points
-  optional float turn_penalty_factor = 32;                                // The turn penalty factor associated with the supplied trace points
-  optional FilterAction filter_action = 33;                               // The trace filter action - either exclude or include
+  ShapeMatch shape_match = 28;                                   // The matching algorithm based on the type of input
+  //uint32 best_paths = 29;                                        // The number of top k paths, deprecated use alternates
+  oneof optional_gps_accuracy {
+    float gps_accuracy = 30;                                       // The gps accuracy associated with the supplied trace points
+  }
+  oneof optional_search_radius {
+    float search_radius = 31;                                      // The search radius associated with the supplied trace points
+  }
+  oneof optional_turn_penalty_factor {
+    float turn_penalty_factor = 32;                                // The turn penalty factor associated with the supplied trace points
+  }
+  FilterAction filter_action = 33;                               // The trace filter action - either exclude or include
   repeated string filter_attributes = 34;                                 // The filter list for trace attributes
 
-  optional float breakage_distance = 36;                                  // Map-matching breaking distance (distance between GPS trace points)
-  optional bool use_timestamps = 37;                                      // Use timestamps to compute elapsed time for trace_route and trace_attributes
-  optional ShapeFormat shape_format = 38;                                 // Shape format (defaults to polyline6 encoding)
-  optional uint32 alternates = 39;                                        // Maximum number of alternate routes that can be returned
-  optional float interpolation_distance = 40;                             // Map-matching interpolation distance beyond which trace points are merged
-  optional bool guidance_views = 41;                                      // Whether to return guidance_views in the response
+  oneof optional_breakage_distance {
+    float breakage_distance = 36;                                  // Map-matching breaking distance (distance between GPS trace points)
+  }
+  bool use_timestamps = 37;                                      // Use timestamps to compute elapsed time for trace_route and trace_attributes
+  ShapeFormat shape_format = 38;                                 // Shape format (defaults to polyline6 encoding)
+  uint32 alternates = 39;                                        // Maximum number of alternate routes that can be returned
+  oneof optional_interpolation_distance {
+    float interpolation_distance = 40;                             // Map-matching interpolation distance beyond which trace points are merged
+  }
+  bool guidance_views = 41;                                      // Whether to return guidance_views in the response
   // 42 is reserved
-  optional uint32 height_precision = 43;                                  // Number of digits precision for heights returned
-  optional bool roundabout_exits = 44;                                    // Whether to announce roundabout exit maneuvers
-  optional bool linear_references = 45;                                   // Include linear references for graph edges returned in certain responses.
+  uint32 height_precision = 43;                                  // Number of digits precision for heights returned
+  bool roundabout_exits = 44;                                    // Whether to announce roundabout exit maneuvers
+  bool linear_references = 45;                                   // Include linear references for graph edges returned in certain responses.
   repeated CostingOptions recostings = 46;                                // Costing options to use to recost a path after it has been found
   repeated Ring exclude_polygons = 47;                                    // Rings/polygons to exclude entire areas during path finding
-  optional bool prioritize_bidirectional = 48;                            // Prioritize bidirectional a* when depart_at date_time.type is specified
+  bool prioritize_bidirectional = 48;                            // Prioritize bidirectional a* when depart_at date_time.type is specified
 }

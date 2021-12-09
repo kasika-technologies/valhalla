@@ -79,18 +79,18 @@ void Isochrone::ConstructIsoTile(const bool multimodal,
   auto max_time_itr =
       std::max_element(api.options().contours().begin(), api.options().contours().end(),
                        [](const auto& a, const auto& b) {
-                         return (!a.has_time() && b.has_time()) ||
-                                (a.has_time() && b.has_time() && a.time() < b.time());
+                         return (!a.optional_time_case() && b.optional_time_case()) ||
+                                (a.optional_time_case() && b.optional_time_case() && a.time() < b.time());
                        });
-  bool has_time = max_time_itr->has_time();
+  bool has_time = max_time_itr->optional_time_case();
   auto max_minutes = has_time ? max_time_itr->time() + 10.0f : std::numeric_limits<float>::min();
   auto max_dist_itr =
       std::max_element(api.options().contours().begin(), api.options().contours().end(),
                        [](const auto& a, const auto& b) {
-                         return (!a.has_distance() && b.has_distance()) ||
-                                (a.has_distance() && b.has_distance() && a.distance() < b.distance());
+                         return (!a.optional_distance_case() && b.optional_distance_case()) ||
+                                (a.optional_distance_case() && b.optional_distance_case() && a.distance() < b.distance());
                        });
-  bool has_distance = max_dist_itr->has_distance();
+  bool has_distance = max_dist_itr->optional_distance_case();
   auto max_km = has_distance ? max_dist_itr->distance() + 10.0f : std::numeric_limits<float>::min();
 
   max_seconds_ = has_time ? max_minutes * kSecPerMinute : max_minutes;
@@ -98,9 +98,9 @@ void Isochrone::ConstructIsoTile(const bool multimodal,
   float max_distance;
   if (multimodal) {
     max_distance = max_seconds_ * 70.0f * kMPHtoMetersPerSec;
-  } else if (mode == TravelMode::kPedestrian) {
+  } else if (mode == sif::TravelMode::kPedestrian) {
     max_distance = max_seconds_ * 5.0f * kMPHtoMetersPerSec;
-  } else if (mode == TravelMode::kBicycle) {
+  } else if (mode == sif::TravelMode::kBicycle) {
     max_distance = max_seconds_ * 20.0f * kMPHtoMetersPerSec;
   } else {
     // A driving mode
@@ -185,7 +185,7 @@ std::shared_ptr<const GriddedData<2>> Isochrone::Expand(const ExpansionType& exp
                                                         Api& api,
                                                         GraphReader& reader,
                                                         const sif::mode_costing_t& mode_costing,
-                                                        const TravelMode mode) {
+                                                        const sif::TravelMode mode) {
   // Initialize and create the isotile
   ConstructIsoTile(expansion_type == ExpansionType::multimodal, api, mode);
   // Compute the expansion

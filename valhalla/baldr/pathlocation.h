@@ -209,46 +209,33 @@ public:
     Location l({loc.ll().lng(), loc.ll().lat()}, fromPBF(loc.type()), loc.minimum_reachability(),
                loc.minimum_reachability(), loc.radius(), side, search_filter);
 
-    if (loc.has_name()) {
-      l.name_ = loc.name();
-    }
-    if (loc.has_street()) {
-      l.street_ = loc.street();
-    }
-    if (loc.has_city()) {
-      l.city_ = loc.city();
-    }
-    if (loc.has_state()) {
-      l.state_ = loc.state();
-    }
-    if (loc.has_postal_code()) {
-      l.zip_ = loc.postal_code();
-    }
-    if (loc.has_country()) {
-      l.country_ = loc.country();
-    }
-    if (loc.has_date_time()) {
-      l.date_time_ = loc.date_time();
-    }
-    if (loc.has_heading()) {
+
+    l.name_ = loc.name();
+    l.street_ = loc.street();
+    l.city_ = loc.city();
+    l.state_ = loc.state();
+    l.zip_ = loc.postal_code();
+    l.country_ = loc.country();
+    l.date_time_ = loc.date_time();
+    if (loc.optional_heading_case()) {
       l.heading_ = loc.heading();
     }
-    if (loc.has_heading_tolerance()) {
+    if (loc.optional_heading_tolerance_case()) {
       l.heading_tolerance_ = loc.heading_tolerance();
     }
-    if (loc.has_node_snap_tolerance()) {
+    if (loc.optional_node_snap_tolerance_case()) {
       l.node_snap_tolerance_ = loc.node_snap_tolerance();
     }
-    if (loc.has_way_id()) {
+    if (loc.optional_way_id_case()) {
       l.way_id_ = loc.way_id();
     }
-    if (loc.has_search_cutoff()) {
+    if (loc.optional_search_cutoff_case()) {
       l.search_cutoff_ = loc.search_cutoff();
     }
-    if (loc.has_street_side_tolerance()) {
+    if (loc.optional_street_side_tolerance_case()) {
       l.street_side_tolerance_ = loc.street_side_tolerance();
     }
-    if (loc.has_street_side_max_distance()) {
+    if (loc.optional_street_side_max_distance_case()) {
       l.street_side_max_distance_ = loc.street_side_max_distance();
     }
     if (loc.has_search_filter()) {
@@ -262,7 +249,7 @@ public:
     if (loc.has_display_ll()) {
       l.display_latlng_ = midgard::PointLL{loc.display_ll().lng(), loc.display_ll().lat()};
     }
-    if (loc.has_preferred_layer()) {
+    if (loc.optional_preferred_layer_case()) {
       l.preferred_layer_ = loc.preferred_layer();
     }
     return l;

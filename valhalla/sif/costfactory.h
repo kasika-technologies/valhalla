@@ -63,10 +63,6 @@ public:
    * @param options  pbf with costing type and costing options
    */
   cost_ptr_t Create(const Options& options) const {
-    // you cant get a costing without a costing type
-    if (!options.has_costing())
-      throw std::runtime_error("No costing provided to cost factory");
-
     // create the cost using the creation function
     auto costing_index = static_cast<int>(options.costing());
     if (costing_index < options.costing_options_size()) {
@@ -93,10 +89,6 @@ public:
    * @param options  pbf with request options
    */
   cost_ptr_t Create(const CostingOptions& options) const {
-    // you cant get a costing without a costing type
-    if (!options.has_costing())
-      throw std::runtime_error("No costing provided to cost factory");
-
     auto itr = factory_funcs_.find(options.costing());
     if (itr == factory_funcs_.end()) {
       auto costing_str = Costing_Enum_Name(options.costing());

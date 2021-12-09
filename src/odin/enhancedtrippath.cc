@@ -102,7 +102,7 @@ const std::string& TripLeg_Use_Name(int v) {
   return f->second;
 }
 
-const std::string& TripLeg_TravelMode_Name(int v) {
+const std::string& TravelMode_Name(int v) {
   static const std::unordered_map<int, std::string> values{
       {0, "kDrive"},
       {1, "kPedestrian"},
@@ -1124,8 +1124,8 @@ std::string EnhancedTripLeg_Edge::ToParameterString() const {
 
   str += delim;
   if (this->has_travel_mode()) {
-    str += "TripLeg_TravelMode_";
-    str += TripLeg_TravelMode_Name(travel_mode());
+    str += "TravelMode_";
+    str += TravelMode_Name(travel_mode());
   }
 
   // NOTE: Current PopulateEdge implementation
@@ -1322,7 +1322,7 @@ EnhancedTripLeg_IntersectingEdge::EnhancedTripLeg_IntersectingEdge(
     : mutable_intersecting_edge_(mutable_intersecting_edge) {
 }
 
-bool EnhancedTripLeg_IntersectingEdge::IsTraversable(const TripLeg_TravelMode travel_mode) const {
+bool EnhancedTripLeg_IntersectingEdge::IsTraversable(const TravelMode travel_mode) const {
   TripLeg_Traversability traversability = GetTravelModeTraversability(travel_mode);
 
   if (traversability != TripLeg_Traversability_kNone) {
@@ -1332,7 +1332,7 @@ bool EnhancedTripLeg_IntersectingEdge::IsTraversable(const TripLeg_TravelMode tr
 }
 
 bool EnhancedTripLeg_IntersectingEdge::IsTraversableOutbound(
-    const TripLeg_TravelMode travel_mode) const {
+    const TravelMode travel_mode) const {
   TripLeg_Traversability traversability = GetTravelModeTraversability(travel_mode);
 
   if ((traversability == TripLeg_Traversability_kForward) ||
@@ -1381,13 +1381,13 @@ std::string EnhancedTripLeg_IntersectingEdge::ToString() const {
 }
 
 ::valhalla::TripLeg_Traversability EnhancedTripLeg_IntersectingEdge::GetTravelModeTraversability(
-    const TripLeg_TravelMode travel_mode) const {
+    const TravelMode travel_mode) const {
   TripLeg_Traversability traversability;
 
   // Set traversability based on travel mode
-  if (travel_mode == TripLeg_TravelMode_kDrive) {
+  if (travel_mode == TravelMode::kDrive) {
     traversability = driveability();
-  } else if (travel_mode == TripLeg_TravelMode_kBicycle) {
+  } else if (travel_mode == TravelMode::kBicycle) {
     traversability = cyclability();
   } else {
     traversability = walkability();
@@ -1426,7 +1426,7 @@ bool EnhancedTripLeg_Node::HasIntersectingEdgeCurrNameConsistency() const {
 
 bool EnhancedTripLeg_Node::HasNonBackwardTraversableSameNameRampIntersectingEdge(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode) {
+    const TravelMode travel_mode) {
   // Loop over the route path intersecting edges
   for (int i = 0; i < intersecting_edge_size(); ++i) {
     auto xedge = GetIntersectingEdge(i);
@@ -1453,7 +1453,7 @@ EnhancedTripLeg_Node::GetIntersectingEdge(size_t index) {
 
 void EnhancedTripLeg_Node::CalculateRightLeftIntersectingEdgeCounts(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode,
+    const TravelMode travel_mode,
     IntersectingEdgeCounts& xedge_counts) {
   xedge_counts.clear();
 
@@ -1532,7 +1532,7 @@ bool EnhancedTripLeg_Node::HasFowardIntersectingEdge(uint32_t from_heading) {
 
 bool EnhancedTripLeg_Node::HasForwardTraversableIntersectingEdge(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode) {
+    const TravelMode travel_mode) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
     if (is_forward(GetTurnDegree(from_heading, intersecting_edge(i).begin_heading())) &&
@@ -1545,7 +1545,7 @@ bool EnhancedTripLeg_Node::HasForwardTraversableIntersectingEdge(
 
 bool EnhancedTripLeg_Node::HasRoadForkTraversableIntersectingEdge(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode,
+    const TravelMode travel_mode,
     bool allow_service_road) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
@@ -1566,7 +1566,7 @@ bool EnhancedTripLeg_Node::HasRoadForkTraversableIntersectingEdge(
 
 bool EnhancedTripLeg_Node::HasForwardTraversableSignificantRoadClassXEdge(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode,
+    const TravelMode travel_mode,
     RoadClass path_road_class) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
@@ -1584,7 +1584,7 @@ bool EnhancedTripLeg_Node::HasForwardTraversableSignificantRoadClassXEdge(
 }
 
 bool EnhancedTripLeg_Node::HasForwardTraversableUseXEdge(uint32_t from_heading,
-                                                         const TripLeg_TravelMode travel_mode,
+                                                         const TravelMode travel_mode,
                                                          const TripLeg_Use use) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
@@ -1603,7 +1603,7 @@ bool EnhancedTripLeg_Node::HasForwardTraversableUseXEdge(uint32_t from_heading,
 bool EnhancedTripLeg_Node::HasSimilarStraightSignificantRoadClassXEdge(
     uint32_t path_turn_degree,
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode,
+    const TravelMode travel_mode,
     RoadClass path_road_class) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
@@ -1626,7 +1626,7 @@ bool EnhancedTripLeg_Node::HasSimilarStraightSignificantRoadClassXEdge(
 bool EnhancedTripLeg_Node::HasSimilarStraightNonRampOrSameNameRampXEdge(
     uint32_t path_turn_degree,
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode) {
+    const TravelMode travel_mode) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
     auto xedge = GetIntersectingEdge(i);
@@ -1648,7 +1648,7 @@ bool EnhancedTripLeg_Node::HasSimilarStraightNonRampOrSameNameRampXEdge(
 
 bool EnhancedTripLeg_Node::HasOnlyForwardTraversableRoadClassXEdges(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode,
+    const TravelMode travel_mode,
     const RoadClass path_road_class) {
 
   // Must have intersecting edges
@@ -1677,7 +1677,7 @@ bool EnhancedTripLeg_Node::HasOnlyForwardTraversableRoadClassXEdges(
 
 bool EnhancedTripLeg_Node::HasWiderForwardTraversableIntersectingEdge(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode) {
+    const TravelMode travel_mode) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
     if (is_wider_forward(GetTurnDegree(from_heading, intersecting_edge(i).begin_heading())) &&
@@ -1690,7 +1690,7 @@ bool EnhancedTripLeg_Node::HasWiderForwardTraversableIntersectingEdge(
 
 bool EnhancedTripLeg_Node::HasWiderForwardTraversableHighwayXEdge(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode) {
+    const TravelMode travel_mode) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
     auto xedge = GetIntersectingEdge(i);
@@ -1702,7 +1702,7 @@ bool EnhancedTripLeg_Node::HasWiderForwardTraversableHighwayXEdge(
   return false;
 }
 
-bool EnhancedTripLeg_Node::HasTraversableIntersectingEdge(const TripLeg_TravelMode travel_mode) {
+bool EnhancedTripLeg_Node::HasTraversableIntersectingEdge(const TravelMode travel_mode) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
     if (GetIntersectingEdge(i)->IsTraversable(travel_mode)) {
@@ -1713,7 +1713,7 @@ bool EnhancedTripLeg_Node::HasTraversableIntersectingEdge(const TripLeg_TravelMo
 }
 
 bool EnhancedTripLeg_Node::HasTraversableOutboundIntersectingEdge(
-    const TripLeg_TravelMode travel_mode) {
+    const TravelMode travel_mode) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
     if (GetIntersectingEdge(i)->IsTraversableOutbound(travel_mode)) {
@@ -1723,7 +1723,7 @@ bool EnhancedTripLeg_Node::HasTraversableOutboundIntersectingEdge(
   return false;
 }
 
-bool EnhancedTripLeg_Node::HasTraversableExcludeUseXEdge(const TripLeg_TravelMode travel_mode,
+bool EnhancedTripLeg_Node::HasTraversableExcludeUseXEdge(const TravelMode travel_mode,
                                                          const TripLeg_Use exclude_use) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
@@ -1738,7 +1738,7 @@ bool EnhancedTripLeg_Node::HasTraversableExcludeUseXEdge(const TripLeg_TravelMod
 }
 
 bool EnhancedTripLeg_Node::HasForwardTraversableExcludeUseXEdge(uint32_t from_heading,
-                                                                const TripLeg_TravelMode travel_mode,
+                                                                const TravelMode travel_mode,
                                                                 const TripLeg_Use exclude_use) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
@@ -1756,7 +1756,7 @@ bool EnhancedTripLeg_Node::HasForwardTraversableExcludeUseXEdge(uint32_t from_he
 
 bool EnhancedTripLeg_Node::HasSpecifiedTurnXEdge(const Turn::Type turn_type,
                                                  uint32_t from_heading,
-                                                 const TripLeg_TravelMode travel_mode) {
+                                                 const TravelMode travel_mode) {
 
   for (int i = 0; i < intersecting_edge_size(); ++i) {
     // Only process the traversable outbound edges
@@ -1790,7 +1790,7 @@ bool EnhancedTripLeg_Node::HasSpecifiedRoadClassXEdge(const RoadClass road_class
 // TODO: refactor to clean up code
 uint32_t EnhancedTripLeg_Node::GetStraightestTraversableIntersectingEdgeTurnDegree(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode,
+    const TravelMode travel_mode,
     boost::optional<TripLeg_Use>* use) {
 
   uint32_t staightest_turn_degree = 180; // Initialize to reverse turn degree
@@ -1806,7 +1806,7 @@ uint32_t EnhancedTripLeg_Node::GetStraightestTraversableIntersectingEdgeTurnDegr
       staightest_delta = straight_delta;
       staightest_turn_degree = intersecting_turn_degree;
       // If a use pointer was passed in and the intersecting edge has a use then set
-      if ((use != nullptr) && xedge->has_use()) {
+      if (use != nullptr) {
         *use = xedge->use();
       }
     }
@@ -1816,7 +1816,7 @@ uint32_t EnhancedTripLeg_Node::GetStraightestTraversableIntersectingEdgeTurnDegr
 
 bool EnhancedTripLeg_Node::IsStraightestTraversableIntersectingEdgeReversed(
     uint32_t from_heading,
-    const TripLeg_TravelMode travel_mode) {
+    const TravelMode travel_mode) {
   uint32_t straightest_traversable_xedge_turn_degree =
       GetStraightestTraversableIntersectingEdgeTurnDegree(from_heading, travel_mode);
   // Determine if the straightest intersecting edge is in the reversed direction
@@ -1847,7 +1847,7 @@ uint32_t EnhancedTripLeg_Node::GetStraightestIntersectingEdgeTurnDegree(uint32_t
 
 uint32_t EnhancedTripLeg_Node::GetRightMostTurnDegree(uint32_t turn_degree,
                                                       uint32_t from_heading,
-                                                      const TripLeg_TravelMode travel_mode) {
+                                                      const TravelMode travel_mode) {
 
   auto get_right_delta = [](uint32_t turn_degree) -> uint32_t {
     if (turn_degree < 90) {
@@ -1880,7 +1880,7 @@ uint32_t EnhancedTripLeg_Node::GetRightMostTurnDegree(uint32_t turn_degree,
 
 uint32_t EnhancedTripLeg_Node::GetLeftMostTurnDegree(uint32_t turn_degree,
                                                      uint32_t from_heading,
-                                                     const TripLeg_TravelMode travel_mode) {
+                                                     const TravelMode travel_mode) {
 
   auto get_left_delta = [](uint32_t turn_degree) -> uint32_t {
     if (turn_degree < 90) {
