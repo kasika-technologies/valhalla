@@ -195,7 +195,6 @@ TEST_F(RouteWithStreetnameAndSign_en_UnitedStates, CheckStreetNamesAndSigns1) {
             LanguageTag::kUnspecified);
 
   // Verify street name language tag is en
-  // TODO: after logic is updated then change LanguageTag::kUnspecified to LanguageTag::kEn
   ++maneuver_index;
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name_size(), 2);
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(0).value(),
@@ -206,7 +205,7 @@ TEST_F(RouteWithStreetnameAndSign_en_UnitedStates, CheckStreetNamesAndSigns1) {
                 .maneuver(maneuver_index)
                 .street_name(0)
                 .language_tag(),
-            LanguageTag::kUnspecified);
+            LanguageTag::kEn);
   EXPECT_EQ(result.directions().routes(0).legs(0).maneuver(maneuver_index).street_name(1).value(),
             "SR 37");
   EXPECT_EQ(result.directions()
@@ -215,7 +214,7 @@ TEST_F(RouteWithStreetnameAndSign_en_UnitedStates, CheckStreetNamesAndSigns1) {
                 .maneuver(maneuver_index)
                 .street_name(1)
                 .language_tag(),
-            LanguageTag::kUnspecified);
+            LanguageTag::kEn);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
