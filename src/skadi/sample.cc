@@ -442,7 +442,7 @@ template <class coord_t> double sample::get(const coord_t& coord) {
   auto index = static_cast<uint16_t>(lat + 90) * 360 + static_cast<uint16_t>(lon + 180);
 
   // get the proper source of the data
-  std::lock_guard<std::mutex> _(cache_lck);
+  //  std::lock_guard<std::mutex> _(cache_lck);
   const auto& tile = cache_->source(index);
   if (!tile)
     return get_from_remote(coord);
@@ -468,9 +468,16 @@ template <class coords_t> std::vector<double> sample::get_all(const coords_t& co
     auto index = static_cast<uint16_t>(lat + 90) * 360 + static_cast<uint16_t>(lon + 180);
 
     if (index != curIndex) {
-      std::lock_guard<std::mutex> _(cache_lck);
-      tile = cache_->source(index);
       curIndex = index;
+
+      //      {
+      //        std::lock_guard<std::mutex> _(cache_lck);
+      tile = cache_->source(index);
+      //        if (!tile) {
+      //          values.emplace_back(get_from_remote(coord));
+      //          continue;
+      //        }
+      //      }
     }
 
     double value{get_no_data_value()};
@@ -478,6 +485,7 @@ template <class coords_t> std::vector<double> sample::get_all(const coords_t& co
       double u = (coord.first - lon) * (HGT_DIM - 1);
       double v = (1.0 - (coord.second - lat)) * (HGT_DIM - 1);
       value = tile.get(u, v);
+      //      values.emplace_back(tile.get(u, v));
     }
 
     if (value == get_no_data_value())
@@ -490,7 +498,6 @@ template <class coords_t> std::vector<double> sample::get_all(const coords_t& co
 }
 
 template <class coord_t> double sample::get_from_cache(const coord_t& coord) {
-  std::lock_guard<std::mutex> _(cache_lck);
   auto tile = cache_->source(get_tile_index(coord));
   if (!tile)
     return get_no_data_value();
@@ -546,10 +553,13 @@ template <class coord_t> double sample::get_from_remote(const coord_t& coord) {
 
   {
     std::lock_guard<std::shared_timed_mutex> _(st_lck);
-    st_.insert(uri);
-    if (!store(elev, result.bytes_)) {
-      LOG_WARN("Fail to save data loaded from remote server address: " + uri);
-      return get_no_data_value();
+    if (!st_.count(uri)) {
+      // TODO(neyromancer): переиспользовать функционал кэша, можно избавиться от st_.
+      st_.insert(uri);
+      if (!store(elev, result.bytes_)) {
+        LOG_WARN("Fail to save data loaded from remote server address: " + uri);
+        return get_no_data_value();
+      }
     }
   }
 
