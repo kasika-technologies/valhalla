@@ -10,9 +10,14 @@ executors:
 commands:
   install_macos_dependencies:
     steps:
-      - run: brew install protobuf cmake ccache libtool boost libspatialite pkg-config luajit curl wget czmq lz4 spatialite-tools unzip
+      - run: brew install protobuf cmake ccache libtool boost libspatialite pkg-config luajit curl wget czmq lz4 spatialite-tools unzip openssl@1.1
       - run: pip3 install requests shapely
       - run: git clone https://github.com/kevinkreiser/prime_server --recurse-submodules && cd prime_server && ./autogen.sh && ./configure && make -j4 && make install
+      - run: |
+            OPENSSL_DIR=/usr/local/include/openssl
+            if [[ ! -f "OPENSSL_DIR" ]]; then
+                ln -s /usr/local/opt/openssl@1.1/include/openssl /usr/local/include/
+            fi
 
 jobs:
   build-docker-images:
