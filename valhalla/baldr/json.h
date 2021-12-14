@@ -110,20 +110,15 @@ public:
           ostream_ << "\\t";
           break;
         default:
-          if (c >= 0 && c < 32) {
-            // format changes for json hex
-            ostream_.setf(std::ios::hex, std::ios::basefield);
-            ostream_.setf(std::ios::uppercase);
-            ostream_.fill('0');
-            // output hex
-            ostream_ << "\\u" << std::setw(4) << static_cast<int>(c);
-            // tear down format changes
-            ostream_.unsetf(std::ios::basefield);
-            ostream_.unsetf(std::ios::uppercase);
-            ostream_.fill(fill);
-          } else {
-            ostream_ << c;
-          }
+          ostream_.setf(std::ios::hex, std::ios::basefield);
+          ostream_.setf(std::ios::uppercase);
+          ostream_.fill('0');
+          // output hex
+          ostream_ << "\\u" << std::setw(4) << static_cast<int>(c);
+          // tear down format changes
+          ostream_.unsetf(std::ios::basefield);
+          ostream_.unsetf(std::ios::uppercase);
+          ostream_.fill(fill);
           break;
       }
     }
